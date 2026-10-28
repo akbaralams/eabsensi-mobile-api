@@ -1,4 +1,7 @@
 /target
+/tmp
+/.local
 .env
 *.log
-/tmp
+/photos
+/.serena
