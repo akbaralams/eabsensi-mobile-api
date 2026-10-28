@@ -1,0 +1,5 @@
+# Konfigurasi lint: npx @redocly/cli@2.62.1 lint --config docs/redocly.yaml docs/openapi.yaml
+extends:
+  - recommended
+rules:
+  info-license: off # API internal, tidak dilisensikan untuk publik
