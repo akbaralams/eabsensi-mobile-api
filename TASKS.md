@@ -27,7 +27,7 @@ Sumber kontrak saat ini ada di `../eabsensi-v2` branch `claude/kontrak-mobile` (
 - Test: token yang dibuat Laravel (login lewat `../eabsensi-v2`) diterima di Rust, dan token Rust diterima Laravel.
 - **Selesai bila**: `tests/contract/01-auth.hurl` hijau terhadap Rust; test interop token lulus.
 
-## [ ] Task 4. Punch
+## [x] Task 4. Punch
 - `POST /api/punches` (multipart, foto jpg/png ≤ 4 MB dicek dari isi berkas, lat/long berpasangan, interval minimum, periode terkunci, status pending/approved), `GET /api/punches?date=`.
 - **Selesai bila**: `02-punches.hurl` hijau terhadap Rust; foto tersimpan dengan tata letak yang sama dan tampil di halaman persetujuan punch web.
 

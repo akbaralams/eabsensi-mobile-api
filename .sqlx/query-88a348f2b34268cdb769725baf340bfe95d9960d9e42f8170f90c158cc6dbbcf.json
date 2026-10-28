@@ -1,0 +1,42 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT p.year, p.month\n           FROM periods p\n           JOIN UNNEST($1::int2[], $2::int2[]) AS m(year, month) ON m.year = p.year AND m.month = p.month\n           WHERE p.status = ANY($3)\n           ORDER BY p.year, p.month",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "year",
+        "type_info": "Int2",
+        "origin": {
+          "Table": {
+            "table": "periods",
+            "name": "year"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "month",
+        "type_info": "Int2",
+        "origin": {
+          "Table": {
+            "table": "periods",
+            "name": "month"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int2Array",
+        "Int2Array",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "88a348f2b34268cdb769725baf340bfe95d9960d9e42f8170f90c158cc6dbbcf"
+}

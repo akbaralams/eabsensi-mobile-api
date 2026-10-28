@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO attendance_punches\n                   (employee_id, punched_at, source, status, photo_path, latitude, longitude, accuracy_meters, created_at, updated_at)\n               VALUES ($1, $2, 'mobile', $3, $4, $5::float8, $6::float8, $7, $8, $8)\n               RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "attendance_punches",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Timestamptz",
+        "Varchar",
+        "Varchar",
+        "Float8",
+        "Float8",
+        "Int2",
+        "Timestamp"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "b2f45deefb469969c8ccacc60be725a911e4afefd34185f85be4b7f05773452d"
+}

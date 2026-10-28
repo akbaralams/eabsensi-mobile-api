@@ -107,6 +107,31 @@ pub fn fixed_clock(at: DateTime<Utc>) -> Clock {
     Arc::new(move || at)
 }
 
+/// Jam yang bisa dimajukan dari test.
+#[derive(Clone)]
+pub struct MovableClock(Arc<std::sync::atomic::AtomicI64>);
+
+impl MovableClock {
+    pub fn at(start: DateTime<Utc>) -> Self {
+        Self(Arc::new(std::sync::atomic::AtomicI64::new(
+            start.timestamp(),
+        )))
+    }
+
+    pub fn advance(&self, seconds: i64) {
+        self.0
+            .fetch_add(seconds, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    pub fn clock(&self) -> Clock {
+        let inner = self.0.clone();
+        Arc::new(move || {
+            DateTime::from_timestamp(inner.load(std::sync::atomic::Ordering::SeqCst), 0)
+                .unwrap_or_default()
+        })
+    }
+}
+
 pub struct Reply {
     pub status: StatusCode,
     pub headers: HeaderMap,
@@ -154,6 +179,22 @@ impl TestApp {
             .fetch_one(&self.db)
             .await
             .expect("query")
+    }
+
+    /// Token Sanctum dibuat langsung di tabel (untuk akun yang tidak bisa login, mis. tanpa pegawai).
+    pub async fn token_for(&self, username: &str) -> String {
+        let secret = eabsensi_mobile_api::token::generate_secret("");
+        let id: i64 = sqlx::query_scalar(
+            r#"INSERT INTO personal_access_tokens (tokenable_type, tokenable_id, name, token, abilities, created_at, updated_at)
+               SELECT 'App\Models\User', id, 'uji', $2, '["mobile"]', now() AT TIME ZONE 'UTC', now() AT TIME ZONE 'UTC'
+               FROM users WHERE username = $1 RETURNING id"#,
+        )
+        .bind(username)
+        .bind(eabsensi_mobile_api::token::sha256_hex(&secret))
+        .fetch_one(&self.db)
+        .await
+        .expect("token");
+        format!("{id}|{secret}")
     }
 
     pub async fn exec(&self, sql: &str) {
