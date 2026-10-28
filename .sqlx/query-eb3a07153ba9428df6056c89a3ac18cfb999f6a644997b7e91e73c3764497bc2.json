@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO leave_requests\n               (employee_id, attendance_status_id, start_date, end_date, reason, status, requested_by, created_at, updated_at)\n           VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $7)\n           RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "leave_requests",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Date",
+        "Date",
+        "Varchar",
+        "Int8",
+        "Timestamp"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "eb3a07153ba9428df6056c89a3ac18cfb999f6a644997b7e91e73c3764497bc2"
+}

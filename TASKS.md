@@ -35,7 +35,7 @@ Sumber kontrak saat ini ada di `../eabsensi-v2` branch `claude/kontrak-mobile` (
 - `GET /api/events`, `POST /api/events/{id}/check-in` (peserta: semua atau department pegawai beserta induknya; tanggal dan jam di zona bisnis; sekali per pegawai).
 - **Selesai bila**: `03-events.hurl` hijau terhadap Rust.
 
-## [ ] Task 6. Cuti
+## [x] Task 6. Cuti
 - `GET /api/leaves` (`data` + `types`), `POST /api/leaves` (rentang < 62 hari, tumpang tindih pending/approved, audit `leave.requested`).
 - **Selesai bila**: seluruh suite (4 file) hijau terhadap Rust dan tetap hijau terhadap Laravel; job suite kontrak di CI tidak lagi `continue-on-error`.
 

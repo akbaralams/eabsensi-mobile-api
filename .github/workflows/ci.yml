@@ -56,8 +56,6 @@ jobs:
     name: suite kontrak (Hurl) terhadap binary
     runs-on: ubuntu-latest
     needs: rust
-    # Sampai seluruh endpoint selesai (Task 6), kegagalan suite belum memblokir.
-    continue-on-error: true
     services:
       postgres:
         image: postgres:18

@@ -21,7 +21,7 @@ use tracing::Level;
 
 use crate::error::AppError;
 use crate::state::AppState;
-use crate::{auth, events, health, punches};
+use crate::{auth, events, health, leaves, punches};
 
 /// Batas body request (foto maks 4 MB + field lain).
 pub const BODY_LIMIT: usize = 5 * 1024 * 1024;
@@ -41,6 +41,7 @@ pub fn router(state: AppState) -> Router {
         .route("/punches", get(punches::index).post(punches::store))
         .route("/events", get(events::index))
         .route("/events/{event}/check-in", post(events::check_in))
+        .route("/leaves", get(leaves::index).post(leaves::store))
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             limit_concurrency,
