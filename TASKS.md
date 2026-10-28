@@ -22,7 +22,7 @@ Sumber kontrak saat ini ada di `../eabsensi-v2` branch `claude/kontrak-mobile` (
 - CI GitHub Actions: service Postgres, muat `schema/pgsql-schema.sql`, `cargo sqlx prepare --check`, fmt, clippy, test, lint OpenAPI, lalu suite kontrak terhadap binary yang berjalan (boleh `continue-on-error` sampai Task 6).
 - **Selesai bila**: `cargo run` melayani `/healthz`; CI hijau untuk fmt/clippy/test.
 
-## [ ] Task 3. Auth
+## [x] Task 3. Auth
 - `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/me`; middleware token kompatibel Sanctum; rate limit login.
 - Test: token yang dibuat Laravel (login lewat `../eabsensi-v2`) diterima di Rust, dan token Rust diterima Laravel.
 - **Selesai bila**: `tests/contract/01-auth.hurl` hijau terhadap Rust; test interop token lulus.

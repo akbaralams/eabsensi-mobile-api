@@ -18,7 +18,10 @@ pub fn sha256_hex(value: &str) -> String {
 /// Rahasia baru: prefix + 40 alfanumerik + crc32b.
 pub fn generate_secret(prefix: &str) -> String {
     let entropy = Alphanumeric.sample_string(&mut rand::rng(), 40);
-    format!("{prefix}{entropy}{:08x}", crc32fast::hash(entropy.as_bytes()))
+    format!(
+        "{prefix}{entropy}{:08x}",
+        crc32fast::hash(entropy.as_bytes())
+    )
 }
 
 /// `Request::bearerToken()` Laravel: kemunculan terakhir `Bearer ` (tanpa membedakan huruf besar),

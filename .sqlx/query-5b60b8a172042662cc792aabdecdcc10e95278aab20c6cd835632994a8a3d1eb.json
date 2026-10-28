@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM personal_access_tokens WHERE tokenable_type = $1 AND tokenable_id = $2 AND name = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5b60b8a172042662cc792aabdecdcc10e95278aab20c6cd835632994a8a3d1eb"
+}

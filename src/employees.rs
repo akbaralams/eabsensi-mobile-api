@@ -1,0 +1,81 @@
+//! Pegawai pengguna dan profil `MeResource`.
+
+use serde::Serialize;
+use sqlx::PgPool;
+
+use crate::config::Config;
+use crate::error::AppResult;
+
+#[derive(Debug, Clone)]
+pub struct Employee {
+    pub id: i64,
+    pub employee_number: String,
+    pub name: String,
+    pub is_active: bool,
+    pub department_code: Option<String>,
+    pub department_name: Option<String>,
+}
+
+/// `EmployeeRepository::findWithDepartment`.
+pub async fn find_with_department(db: &PgPool, id: i64) -> AppResult<Option<Employee>> {
+    let row = sqlx::query_as!(
+        Employee,
+        r#"SELECT e.id, e.employee_number, e.name, e.is_active,
+                  d.code AS "department_code?", d.name AS "department_name?"
+           FROM employees e
+           LEFT JOIN departments d ON d.id = e.department_id
+           WHERE e.id = $1"#,
+        id
+    )
+    .fetch_optional(db)
+    .await?;
+    Ok(row)
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+pub struct EmployeeSummary {
+    pub id: i64,
+    pub employee_number: String,
+    pub name: String,
+    pub department: Option<String>,
+}
+
+/// `MeResource`: profil pengguna dan pengaturan aplikasi.
+#[derive(Debug, Serialize, PartialEq)]
+pub struct Me {
+    pub id: i64,
+    pub name: String,
+    pub username: Option<String>,
+    pub employee: Option<EmployeeSummary>,
+    pub timezone: String,
+    pub requires_photo: bool,
+    pub requires_approval: bool,
+}
+
+pub struct UserIdentity<'a> {
+    pub id: i64,
+    pub name: &'a str,
+    pub username: Option<&'a str>,
+    pub employee_id: Option<i64>,
+}
+
+pub async fn me(db: &PgPool, config: &Config, user: UserIdentity<'_>) -> AppResult<Me> {
+    let employee = match user.employee_id {
+        Some(id) => find_with_department(db, id).await?,
+        None => None,
+    };
+    Ok(Me {
+        id: user.id,
+        name: user.name.to_string(),
+        username: user.username.map(str::to_string),
+        employee: employee.map(|e| EmployeeSummary {
+            id: e.id,
+            employee_number: e.employee_number,
+            name: e.name,
+            department: e.department_name,
+        }),
+        timezone: config.timezone.name().to_string(),
+        requires_photo: config.requires_photo,
+        requires_approval: config.requires_approval,
+    })
+}

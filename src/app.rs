@@ -20,8 +20,8 @@ use tower_http::trace::{DefaultOnResponse, TraceLayer};
 use tracing::Level;
 
 use crate::error::AppError;
-use crate::health;
 use crate::state::AppState;
+use crate::{auth, health};
 
 /// Batas body request (foto maks 4 MB + field lain).
 pub const BODY_LIMIT: usize = 5 * 1024 * 1024;
@@ -34,8 +34,10 @@ pub fn app(state: AppState) -> NormalizePath<Router> {
 }
 
 pub fn router(state: AppState) -> Router {
-    let api: Router<AppState> = Router::new()
-        .route("/{*rest}", post(route_not_found))
+    let api = Router::new()
+        .route("/auth/login", post(auth::login))
+        .route("/auth/logout", post(auth::logout))
+        .route("/me", get(auth::me))
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             limit_concurrency,
