@@ -43,6 +43,6 @@ Sumber kontrak saat ini ada di `../eabsensi-v2` branch `claude/kontrak-mobile` (
 - Hasilkan OpenAPI dari kode (mis. `utoipa`), bandingkan dengan `docs/openapi.yaml` di CI (beda bentuk = gagal).
 - **Selesai bila**: CI gagal saat bentuk respons diubah tanpa memperbarui `docs/openapi.yaml`.
 
-## [ ] Task 8. Siap staging (bersama sesi `eabsensi-v2`)
+## [x] Task 8. Siap staging (bersama sesi `eabsensi-v2`)
 - Uji beban puncak pagi 2.000 pegawai (bandingkan `../eabsensi-v2/docs/performance.md`), unit systemd/Windows service, contoh konfigurasi nginx (`/api` ke Rust).
 - Urutan cutover dan rollback mengikuti Tahap 6-7 di `rust-services-plan.md`; perubahan dokumen di `eabsensi-v2` dikerjakan di sesinya.

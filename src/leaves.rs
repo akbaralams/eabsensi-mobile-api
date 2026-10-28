@@ -101,7 +101,7 @@ pub async fn index(State(state): State<AppState>, user: AuthUser) -> AppResult<J
     let employee_id = user.require_employee()?;
     let rows = sqlx::query_as!(
         LeaveRow,
-        r#"SELECT l.id, s.name AS "type_name?", l.attendance_status_id, l.start_date, l.end_date, l.reason, l.status
+        r#"SELECT l.id AS "id!", s.name AS "type_name?", l.attendance_status_id AS "attendance_status_id!", l.start_date AS "start_date!", l.end_date AS "end_date!", l.reason, l.status AS "status!"
            FROM leave_requests l
            LEFT JOIN attendance_statuses s ON s.id = l.attendance_status_id
            WHERE l.employee_id = $1
@@ -320,7 +320,7 @@ async fn request_leave(
 
     let row = sqlx::query_as!(
         LeaveRow,
-        r#"SELECT l.id, s.name AS "type_name?", l.attendance_status_id, l.start_date, l.end_date, l.reason, l.status
+        r#"SELECT l.id AS "id!", s.name AS "type_name?", l.attendance_status_id AS "attendance_status_id!", l.start_date AS "start_date!", l.end_date AS "end_date!", l.reason, l.status AS "status!"
            FROM leave_requests l
            LEFT JOIN attendance_statuses s ON s.id = l.attendance_status_id
            WHERE l.id = $1"#,

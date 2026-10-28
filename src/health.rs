@@ -13,6 +13,13 @@ use serde_json::json;
 use crate::state::AppState;
 
 pub async fn healthz(State(state): State<AppState>) -> Response {
+    if state.is_draining() {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({ "status": "draining" })),
+        )
+            .into_response();
+    }
     let database = tokio::time::timeout(
         Duration::from_secs(2),
         sqlx::query_scalar!("SELECT 1 AS \"one!\"").fetch_one(&state.db),

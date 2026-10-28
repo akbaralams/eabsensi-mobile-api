@@ -73,14 +73,24 @@ async fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let addr = config.listen_addr;
+    let drain = config.shutdown_drain;
     let state = AppState::new(db, config, limiter);
+    let shutdown_state = state.clone();
     let listener = tokio::net::TcpListener::bind(addr).await?;
     tracing::info!(%addr, "eabsensi-mobile-api mendengarkan");
 
     let service =
         ServiceExt::<Request>::into_make_service_with_connect_info::<SocketAddr>(app(state));
     axum::serve(listener, service)
-        .with_graceful_shutdown(shutdown_signal())
+        .with_graceful_shutdown(async move {
+            shutdown_signal().await;
+            if !drain.is_zero() {
+                // Health check gagal dulu agar load balancer berhenti mengirim request, lalu berhenti.
+                shutdown_state.start_draining();
+                tracing::info!(secs = drain.as_secs(), "drain sebelum berhenti");
+                tokio::time::sleep(drain).await;
+            }
+        })
         .await?;
     tracing::info!("berhenti dengan rapi");
     Ok(())

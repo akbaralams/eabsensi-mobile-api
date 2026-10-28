@@ -73,7 +73,7 @@ async fn find_token(state: &AppState, parsed: &ParsedToken<'_>) -> AppResult<Opt
             ParsedToken::WithId { id, secret } => {
                 let row = sqlx::query_as!(
                 TokenRow,
-                r#"SELECT t.id, t.token, t.abilities, t.last_used_at, t.expires_at, t.created_at,
+                r#"SELECT t.id AS "id!", t.token AS "token!", t.abilities, t.last_used_at, t.expires_at, t.created_at,
                           u.id AS "user_id?", u.name AS "user_name?", u.username, u.employee_id
                    FROM personal_access_tokens t
                    LEFT JOIN users u ON u.id = t.tokenable_id AND t.tokenable_type = $2
@@ -87,7 +87,7 @@ async fn find_token(state: &AppState, parsed: &ParsedToken<'_>) -> AppResult<Opt
             }
             ParsedToken::Plain(secret) => sqlx::query_as!(
                 TokenRow,
-                r#"SELECT t.id, t.token, t.abilities, t.last_used_at, t.expires_at, t.created_at,
+                r#"SELECT t.id AS "id!", t.token AS "token!", t.abilities, t.last_used_at, t.expires_at, t.created_at,
                           u.id AS "user_id?", u.name AS "user_name?", u.username, u.employee_id
                    FROM personal_access_tokens t
                    LEFT JOIN users u ON u.id = t.tokenable_id AND t.tokenable_type = $2
@@ -320,8 +320,15 @@ async fn verify_password(state: &AppState, password: String, hash: String) -> Ap
         state.hash_slots.clone().acquire_owned(),
     )
     .await
+    // Antrean penuh: 429 + Retry-After (kode yang sudah dipahami aplikasi: "coba lagi nanti"),
+    // lebih baik daripada menahan klien lama lalu tetap gagal.
     .map_err(|_| {
-        AppError::ServiceUnavailable("Server sedang sibuk. Coba lagi sebentar lagi.".into())
+        let secs = state.config.hash_queue_timeout.as_secs().max(1);
+        AppError::TooManyRequests {
+            limit: state.config.hash_concurrency as u32,
+            retry_after_secs: secs,
+            reset_at_unix: chrono::Utc::now().timestamp() + secs as i64,
+        }
     })?
     .map_err(AppError::internal)?;
 
@@ -361,13 +368,19 @@ pub async fn login(
 ) -> AppResult<Json<LoginResponse>> {
     let limits = &state.config.rate_limits;
     // throttle:api (grup api): per token bila ada header Bearer, selain itu per IP.
-    let api_key = headers
+    // Batas per IP bisa dilonggarkan terpisah: di belakang NAT kantor ribuan pegawai berbagi satu IP.
+    let api_limit = headers
         .get(header::AUTHORIZATION)
         .and_then(|v| v.to_str().ok())
         .and_then(token::bearer_token)
         .map_or_else(
-            || format!("api-ip:{ip}"),
-            |t| format!("api:{}", token::sha256_hex(t)),
+            || Limit::per_minute(limits.api_per_ip, format!("api-ip:{ip}")),
+            |t| {
+                Limit::per_minute(
+                    limits.api_per_token,
+                    format!("api:{}", token::sha256_hex(t)),
+                )
+            },
         );
     let login_key = match input.get("login") {
         Some(Value::String(s)) => s.to_lowercase(),
@@ -377,7 +390,7 @@ pub async fn login(
     state
         .limiter
         .check(&[
-            Limit::per_minute(limits.api_per_token, api_key),
+            api_limit,
             Limit::per_minute(limits.login_per_ip, format!("login-ip:{ip}")),
             Limit::per_minute(limits.login_per_account, format!("login:{login_key}|{ip}")),
         ])

@@ -21,7 +21,7 @@ pub struct Employee {
 pub async fn find_with_department(db: &PgPool, id: i64) -> AppResult<Option<Employee>> {
     let row = sqlx::query_as!(
         Employee,
-        r#"SELECT e.id, e.employee_number, e.name, e.is_active,
+        r#"SELECT e.id AS "id!", e.employee_number AS "employee_number!", e.name AS "name!", e.is_active AS "is_active!",
                   d.code AS "department_code?", d.name AS "department_name?"
            FROM employees e
            LEFT JOIN departments d ON d.id = e.department_id

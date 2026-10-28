@@ -34,6 +34,8 @@ pub struct RateLimits {
     pub login_per_ip: u32,
     pub login_per_account: u32,
     pub api_per_token: u32,
+    /// `throttle:api` untuk request tanpa token (praktis hanya login), per IP.
+    pub api_per_ip: u32,
     pub actions_per_user: u32,
 }
 
@@ -66,6 +68,10 @@ pub struct Config {
 
     pub hash_concurrency: usize,
     pub hash_queue_timeout: Duration,
+
+    /// Setelah SIGTERM, `/healthz` dibalas 503 selama ini sebelum berhenti menerima koneksi,
+    /// agar load balancer sempat mengeluarkan instance dari pool.
+    pub shutdown_drain: Duration,
 
     pub rate_limits: RateLimits,
     pub rate_limit_store: RateLimitStoreKind,
@@ -163,13 +169,21 @@ impl Config {
             photo_file_mode: parse_octal(&get, "PHOTO_FILE_MODE", 0o644)?,
             photo_dir_mode: parse_octal(&get, "PHOTO_DIR_MODE", 0o755)?,
 
-            hash_concurrency: parse(&get, "LOGIN_HASH_CONCURRENCY", &cpus.to_string())?,
-            hash_queue_timeout: Duration::from_secs(parse(&get, "LOGIN_HASH_QUEUE_SECS", "20")?),
+            // Sisakan satu inti untuk request lain saat lonjakan login.
+            hash_concurrency: parse(
+                &get,
+                "LOGIN_HASH_CONCURRENCY",
+                &cpus.saturating_sub(1).max(1).to_string(),
+            )?,
+            hash_queue_timeout: Duration::from_secs(parse(&get, "LOGIN_HASH_QUEUE_SECS", "5")?),
+
+            shutdown_drain: Duration::from_secs(parse(&get, "SHUTDOWN_DRAIN_SECS", "0")?),
 
             rate_limits: RateLimits {
                 login_per_ip: parse(&get, "RATE_LIMIT_LOGIN_PER_IP", "60")?,
                 login_per_account: parse(&get, "RATE_LIMIT_LOGIN_PER_ACCOUNT", "5")?,
                 api_per_token: parse(&get, "RATE_LIMIT_API_PER_TOKEN", "120")?,
+                api_per_ip: parse(&get, "RATE_LIMIT_API_PER_IP", "120")?,
                 actions_per_user: parse(&get, "RATE_LIMIT_ACTIONS_PER_USER", "20")?,
             },
             rate_limit_store,
@@ -309,6 +323,7 @@ mod tests {
         assert_eq!(config.rate_limits.login_per_ip, 60);
         assert_eq!(config.rate_limits.login_per_account, 5);
         assert_eq!(config.rate_limits.api_per_token, 120);
+        assert_eq!(config.rate_limits.api_per_ip, 120);
         assert_eq!(config.rate_limits.actions_per_user, 20);
         assert_eq!(config.rate_limit_store, RateLimitStoreKind::Memory);
     }

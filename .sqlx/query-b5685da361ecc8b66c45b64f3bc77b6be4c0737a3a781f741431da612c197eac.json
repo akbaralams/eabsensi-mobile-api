@@ -1,11 +1,11 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT l.id, s.name AS \"type_name?\", l.attendance_status_id, l.start_date, l.end_date, l.reason, l.status\n           FROM leave_requests l\n           LEFT JOIN attendance_statuses s ON s.id = l.attendance_status_id\n           WHERE l.employee_id = $1\n           ORDER BY l.start_date DESC, l.id DESC\n           LIMIT 50",
+  "query": "SELECT l.id AS \"id!\", s.name AS \"type_name?\", l.attendance_status_id AS \"attendance_status_id!\", l.start_date AS \"start_date!\", l.end_date AS \"end_date!\", l.reason, l.status AS \"status!\"\n           FROM leave_requests l\n           LEFT JOIN attendance_statuses s ON s.id = l.attendance_status_id\n           WHERE l.id = $1",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "id",
+        "name": "id!",
         "type_info": "Int8",
         "origin": {
           "Table": {
@@ -27,7 +27,7 @@
       },
       {
         "ordinal": 2,
-        "name": "attendance_status_id",
+        "name": "attendance_status_id!",
         "type_info": "Int8",
         "origin": {
           "Table": {
@@ -38,7 +38,7 @@
       },
       {
         "ordinal": 3,
-        "name": "start_date",
+        "name": "start_date!",
         "type_info": "Date",
         "origin": {
           "Table": {
@@ -49,7 +49,7 @@
       },
       {
         "ordinal": 4,
-        "name": "end_date",
+        "name": "end_date!",
         "type_info": "Date",
         "origin": {
           "Table": {
@@ -71,7 +71,7 @@
       },
       {
         "ordinal": 6,
-        "name": "status",
+        "name": "status!",
         "type_info": "Varchar",
         "origin": {
           "Table": {
@@ -88,7 +88,7 @@
     },
     "nullable": [
       false,
-      false,
+      true,
       false,
       false,
       false,
@@ -96,5 +96,5 @@
       false
     ]
   },
-  "hash": "093c310e74e0e273a01b4da307a1a15671696c8c23cf69b8d3c1de5809e7b2e7"
+  "hash": "b5685da361ecc8b66c45b64f3bc77b6be4c0737a3a781f741431da612c197eac"
 }

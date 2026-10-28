@@ -1,11 +1,11 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT l.id, s.name AS \"type_name?\", l.attendance_status_id, l.start_date, l.end_date, l.reason, l.status\n           FROM leave_requests l\n           LEFT JOIN attendance_statuses s ON s.id = l.attendance_status_id\n           WHERE l.id = $1",
+  "query": "SELECT l.id AS \"id!\", s.name AS \"type_name?\", l.attendance_status_id AS \"attendance_status_id!\", l.start_date AS \"start_date!\", l.end_date AS \"end_date!\", l.reason, l.status AS \"status!\"\n           FROM leave_requests l\n           LEFT JOIN attendance_statuses s ON s.id = l.attendance_status_id\n           WHERE l.employee_id = $1\n           ORDER BY l.start_date DESC, l.id DESC\n           LIMIT 50",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "id",
+        "name": "id!",
         "type_info": "Int8",
         "origin": {
           "Table": {
@@ -27,7 +27,7 @@
       },
       {
         "ordinal": 2,
-        "name": "attendance_status_id",
+        "name": "attendance_status_id!",
         "type_info": "Int8",
         "origin": {
           "Table": {
@@ -38,7 +38,7 @@
       },
       {
         "ordinal": 3,
-        "name": "start_date",
+        "name": "start_date!",
         "type_info": "Date",
         "origin": {
           "Table": {
@@ -49,7 +49,7 @@
       },
       {
         "ordinal": 4,
-        "name": "end_date",
+        "name": "end_date!",
         "type_info": "Date",
         "origin": {
           "Table": {
@@ -71,7 +71,7 @@
       },
       {
         "ordinal": 6,
-        "name": "status",
+        "name": "status!",
         "type_info": "Varchar",
         "origin": {
           "Table": {
@@ -88,7 +88,7 @@
     },
     "nullable": [
       false,
-      true,
+      false,
       false,
       false,
       false,
@@ -96,5 +96,5 @@
       false
     ]
   },
-  "hash": "878bed976d4cda321597e3c8dc4ad60008573c56b5082ebb16425f4228829e7c"
+  "hash": "3fab0e30e17d07de5e1063919578447586b6ff5e7ad023a6b98804be9937adc5"
 }

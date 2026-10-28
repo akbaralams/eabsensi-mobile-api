@@ -1,0 +1,46 @@
+# Unit template: satu instance per port. Dua instance per host memungkinkan restart bergiliran
+# tanpa henti layanan (deploy, ganti konfigurasi):
+#   systemctl enable --now eabsensi-mobile-api@8080 eabsensi-mobile-api@8081
+#   systemctl restart eabsensi-mobile-api@8080 && sleep 20 && systemctl restart eabsensi-mobile-api@8081
+#
+# Konfigurasi di /etc/eabsensi/mobile-api.env (lihat .env.example; nilai ATTENDANCE_*/SANCTUM_*
+# harus sama dengan .env Laravel). File itu berisi kredensial: chmod 600, milik root.
+
+[Unit]
+Description=eAbsensi API mobile (Rust) port %i
+Documentation=https://github.com/akbaralams/eabsensi-mobile-api
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=eabsensi-api
+# Grup yang sama dengan PHP-FPM agar halaman persetujuan web bisa membaca foto.
+Group=www-data
+EnvironmentFile=/etc/eabsensi/mobile-api.env
+Environment=LISTEN_ADDR=127.0.0.1:%i
+Environment=LOG_FORMAT=json
+# Health check gagal 15 detik sebelum berhenti, agar load balancer sempat mengalihkan request.
+Environment=SHUTDOWN_DRAIN_SECS=15
+ExecStart=/opt/eabsensi-mobile-api/eabsensi-mobile-api
+Restart=on-failure
+RestartSec=2
+KillSignal=SIGTERM
+TimeoutStopSec=90
+LimitNOFILE=65536
+
+# Pengerasan: hanya folder foto yang boleh ditulis.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/var/www/eabsensi-v2/storage/app/private
+
+[Install]
+WantedBy=multi-user.target

@@ -1,11 +1,11 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT e.id, e.employee_number, e.name, e.is_active,\n                  d.code AS \"department_code?\", d.name AS \"department_name?\"\n           FROM employees e\n           LEFT JOIN departments d ON d.id = e.department_id\n           WHERE e.id = $1",
+  "query": "SELECT e.id AS \"id!\", e.employee_number AS \"employee_number!\", e.name AS \"name!\", e.is_active AS \"is_active!\",\n                  d.code AS \"department_code?\", d.name AS \"department_name?\"\n           FROM employees e\n           LEFT JOIN departments d ON d.id = e.department_id\n           WHERE e.id = $1",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "id",
+        "name": "id!",
         "type_info": "Int8",
         "origin": {
           "Table": {
@@ -16,7 +16,7 @@
       },
       {
         "ordinal": 1,
-        "name": "employee_number",
+        "name": "employee_number!",
         "type_info": "Varchar",
         "origin": {
           "Table": {
@@ -27,7 +27,7 @@
       },
       {
         "ordinal": 2,
-        "name": "name",
+        "name": "name!",
         "type_info": "Varchar",
         "origin": {
           "Table": {
@@ -38,7 +38,7 @@
       },
       {
         "ordinal": 3,
-        "name": "is_active",
+        "name": "is_active!",
         "type_info": "Bool",
         "origin": {
           "Table": {
@@ -76,13 +76,13 @@
       ]
     },
     "nullable": [
-      false,
-      false,
-      false,
-      false,
       true,
-      true
+      true,
+      true,
+      true,
+      false,
+      false
     ]
   },
-  "hash": "f7f410825e6607dff64f7b34ca269815ca7b01e2852adc41d6e99cc49b1c3f40"
+  "hash": "34a7291730a26609083abe90f664ff80a6fc92f5362c31feb7f0d91b8119ab4e"
 }

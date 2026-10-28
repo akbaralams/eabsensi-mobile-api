@@ -1,11 +1,11 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT t.id, t.token, t.abilities, t.last_used_at, t.expires_at, t.created_at,\n                          u.id AS \"user_id?\", u.name AS \"user_name?\", u.username, u.employee_id\n                   FROM personal_access_tokens t\n                   LEFT JOIN users u ON u.id = t.tokenable_id AND t.tokenable_type = $2\n                   WHERE t.token = $1",
+  "query": "SELECT t.id AS \"id!\", t.token AS \"token!\", t.abilities, t.last_used_at, t.expires_at, t.created_at,\n                          u.id AS \"user_id?\", u.name AS \"user_name?\", u.username, u.employee_id\n                   FROM personal_access_tokens t\n                   LEFT JOIN users u ON u.id = t.tokenable_id AND t.tokenable_type = $2\n                   WHERE t.token = $1",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "id",
+        "name": "id!",
         "type_info": "Int8",
         "origin": {
           "Table": {
@@ -16,7 +16,7 @@
       },
       {
         "ordinal": 1,
-        "name": "token",
+        "name": "token!",
         "type_info": "Varchar",
         "origin": {
           "Table": {
@@ -133,5 +133,5 @@
       true
     ]
   },
-  "hash": "d65b54c27c9618be0f3e91744102b0980023b09471425babc9d7d5c11359dbe9"
+  "hash": "433df3f63470b2b003025b5158f248357d7cb12812d64e23bc30aff476558135"
 }
