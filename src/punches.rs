@@ -5,12 +5,14 @@ use axum::extract::State;
 use axum::http::{StatusCode, Uri};
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::Serialize;
-use serde_json::{Value, json};
+use serde_json::Value;
+use utoipa::ToSchema;
 
 use crate::auth::{ActionLimited, AuthUser, NO_EMPLOYEE};
 use crate::employees;
 use crate::error::{AppError, AppResult};
 use crate::input::Input;
+use crate::openapi::{Data, EvidenceForm, Message, Unprocessable};
 use crate::periods;
 use crate::photos::{self, Evidence};
 use crate::state::AppState;
@@ -21,7 +23,7 @@ use crate::validation::strict_date;
 /// sama, agar dua request serentak tidak sama-sama lolos cek interval minimum.
 const PUNCH_LOCK_NAMESPACE: i64 = 0x5055_4E43 << 32; // "PUNC"
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq, ToSchema)]
 pub struct PunchResource {
     pub id: i64,
     pub punched_at: String,
@@ -77,11 +79,21 @@ fn requested_date(uri: &Uri, today: NaiveDate) -> NaiveDate {
 }
 
 /// `GET /api/punches`: punch milik sendiri pada satu hari, semua status, terlama dulu.
+#[utoipa::path(
+    get, path = "/punches", tag = "Punch", operation_id = "listPunches",
+    params(("date" = Option<String>, Query, description = "Tanggal di zona bisnis (YYYY-MM-DD). Kosong atau tidak valid berarti hari ini.")),
+    responses(
+        (status = 200, description = "Daftar punch, terlama dulu", body = Data<Vec<PunchResource>>),
+        (status = 401, description = "Token tidak sah", body = Message),
+        (status = 403, description = "Akun belum terhubung ke data pegawai", body = Message),
+        (status = 429, description = "Batas laju terlampaui", body = Message),
+    )
+)]
 pub async fn index(
     State(state): State<AppState>,
     user: AuthUser,
     uri: Uri,
-) -> AppResult<Json<Value>> {
+) -> AppResult<Json<Data<Vec<PunchResource>>>> {
     let employee_id = user.require_employee()?;
     let tz = state.config.timezone;
     let date = requested_date(&uri, local_date(state.now(), tz));
@@ -101,19 +113,29 @@ pub async fn index(
     .fetch_all(&state.db)
     .await?;
 
-    let data: Vec<PunchResource> = rows.into_iter().map(|r| r.resource(&state)).collect();
-    Ok(Json(json!({ "data": data })))
+    let data = rows.into_iter().map(|r| r.resource(&state)).collect();
+    Ok(Json(Data { data }))
 }
 
 /// `POST /api/punches` (multipart): validasi form dulu, baru aturan bisnis.
+#[utoipa::path(
+    post, path = "/punches", tag = "Punch", operation_id = "createPunch",
+    request_body(content = EvidenceForm, content_type = "multipart/form-data"),
+    responses(
+        (status = 201, description = "Tercatat", body = Data<PunchResource>),
+        (status = 401, description = "Token tidak sah", body = Message),
+        (status = 422, description = "Galat validasi atau penolakan aturan", body = Unprocessable),
+        (status = 429, description = "Batas laju terlampaui", body = Message),
+    )
+)]
 pub async fn store(
     State(state): State<AppState>,
     ActionLimited(user): ActionLimited,
     input: Input,
-) -> AppResult<(StatusCode, Json<Value>)> {
+) -> AppResult<(StatusCode, Json<Data<PunchResource>>)> {
     let evidence = photos::validate_evidence(&input, state.config.requires_photo)?;
     let punch = record_mobile_punch(&state, &user, evidence).await?;
-    Ok((StatusCode::CREATED, Json(json!({ "data": punch }))))
+    Ok((StatusCode::CREATED, Json(Data { data: punch })))
 }
 
 /// `RecordMobilePunch::handle`. Waktu selalu dari server.

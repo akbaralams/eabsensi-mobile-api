@@ -308,7 +308,7 @@ components:
       properties:
         id: { type: integer }
         name: { type: string }
-        username: { type: string }
+        username: { type: [string, 'null'], description: Null bila akun tidak punya username (login dengan email) }
         employee:
           oneOf:
             - $ref: '#/components/schemas/EmployeeSummary'

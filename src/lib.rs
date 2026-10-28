@@ -10,6 +10,7 @@ pub mod health;
 pub mod input;
 pub mod leaves;
 pub mod net;
+pub mod openapi;
 pub mod periods;
 pub mod photos;
 pub mod punches;

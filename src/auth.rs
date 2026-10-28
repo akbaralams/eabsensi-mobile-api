@@ -11,11 +11,13 @@ use axum::http::{HeaderMap, header};
 use chrono::{DateTime, NaiveDateTime, TimeDelta, Utc};
 use serde::Serialize;
 use serde_json::{Value, json};
+use utoipa::ToSchema;
 
 use crate::employees::{self, Me, UserIdentity};
 use crate::error::{AppError, AppResult};
 use crate::input::Input;
 use crate::net::ClientIp;
+use crate::openapi::{Data, LoginRequest, Message, Unprocessable};
 use crate::rate_limit::Limit;
 use crate::state::AppState;
 use crate::time::naive_utc;
@@ -212,7 +214,7 @@ impl FromRequestParts<AppState> for ActionLimited {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct LoginResponse {
     token: String,
     user: Me,
@@ -338,6 +340,19 @@ async fn verify_password(state: &AppState, password: String, hash: String) -> Ap
     .map_err(AppError::internal)
 }
 
+/// Masuk dan dapatkan token perangkat. Satu perangkat satu token: login ulang dengan `device_name` yang
+/// sama mencabut token lama.
+#[utoipa::path(
+    post, path = "/auth/login", tag = "Auth", operation_id = "login",
+    security(()),
+    request_body(content = LoginRequest, content_type = "application/json"),
+    responses(
+        (status = 200, description = "Berhasil", body = LoginResponse),
+        (status = 403, description = "Akun belum terhubung ke data pegawai", body = Message),
+        (status = 422, description = "Validasi gagal, atau username/sandi salah, atau akun nonaktif", body = Unprocessable),
+        (status = 429, description = "Batas laju terlampaui", body = Message),
+    )
+)]
 pub async fn login(
     State(state): State<AppState>,
     ClientIp(ip): ClientIp,
@@ -427,19 +442,39 @@ pub async fn login(
     }))
 }
 
-pub async fn logout(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
+/// Cabut token yang sedang dipakai.
+#[utoipa::path(
+    post, path = "/auth/logout", tag = "Auth", operation_id = "logout",
+    responses(
+        (status = 200, description = "Berhasil", body = Message),
+        (status = 401, description = "Token tidak sah", body = Message),
+        (status = 429, description = "Batas laju terlampaui", body = Message),
+    )
+)]
+pub async fn logout(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Message>> {
     sqlx::query!(
         "DELETE FROM personal_access_tokens WHERE id = $1",
         user.token_id
     )
     .execute(&state.db)
     .await?;
-    Ok(Json(json!({ "message": "Berhasil keluar." })))
+    Ok(Json(Message {
+        message: "Berhasil keluar.".into(),
+    }))
 }
 
-pub async fn me(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
+/// Profil pengguna dan pengaturan aplikasi.
+#[utoipa::path(
+    get, path = "/me", tag = "Auth", operation_id = "me",
+    responses(
+        (status = 200, description = "Profil", body = Data<Me>),
+        (status = 401, description = "Token tidak sah", body = Message),
+        (status = 429, description = "Batas laju terlampaui", body = Message),
+    )
+)]
+pub async fn me(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Data<Me>>> {
     let me = employees::me(&state.db, &state.config, user.identity()).await?;
-    Ok(Json(json!({ "data": me })))
+    Ok(Json(Data { data: me }))
 }
 
 #[cfg(test)]

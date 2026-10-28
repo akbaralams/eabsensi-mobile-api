@@ -6,11 +6,13 @@ use axum::http::StatusCode;
 use chrono::NaiveDate;
 use serde::Serialize;
 use serde_json::{Value, json};
+use utoipa::ToSchema;
 
 use crate::auth::{ActionLimited, AuthUser};
 use crate::error::{AppError, AppResult};
 use crate::input::Input;
 use crate::net::ClientIp;
+use crate::openapi::{Data, LeaveRequest, Message, Unprocessable};
 use crate::state::AppState;
 use crate::time::naive_utc;
 use crate::validation::{ValidationErrors, msg, php_integer, strict_date};
@@ -19,7 +21,7 @@ use crate::validation::{ValidationErrors, msg, php_integer, strict_date};
 pub const MAX_DAYS: i64 = 62;
 const LEAVE_LOCK_NAMESPACE: i64 = 0x4C45_4156 << 32; // "LEAV"
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq, ToSchema)]
 pub struct LeaveResource {
     pub id: i64,
     #[serde(rename = "type")]
@@ -27,6 +29,7 @@ pub struct LeaveResource {
     pub attendance_status_id: i64,
     pub start_date: String,
     pub end_date: String,
+    #[schema(required = true)]
     pub reason: Option<String>,
     pub status: String,
     pub status_label: String,
@@ -69,15 +72,32 @@ impl From<LeaveRow> for LeaveResource {
     }
 }
 
-#[derive(Debug, Serialize)]
-struct LeaveType {
-    id: i64,
-    code: String,
-    name: String,
+/// Jenis cuti yang bisa dipilih (status kehadiran aktif).
+#[derive(Debug, Serialize, ToSchema)]
+pub struct LeaveType {
+    pub id: i64,
+    pub code: String,
+    pub name: String,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct LeaveList {
+    pub data: Vec<LeaveResource>,
+    /// Status kehadiran aktif, urut nama.
+    pub types: Vec<LeaveType>,
 }
 
 /// `GET /api/leaves`: 50 pengajuan terakhir milik sendiri (tanggal mulai terbaru dulu) dan jenis aktif.
-pub async fn index(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
+#[utoipa::path(
+    get, path = "/leaves", tag = "Cuti", operation_id = "listLeaves",
+    responses(
+        (status = 200, description = "Pengajuan (tanggal mulai terbaru dulu) dan jenis cuti", body = LeaveList),
+        (status = 401, description = "Token tidak sah", body = Message),
+        (status = 403, description = "Akun belum terhubung ke data pegawai", body = Message),
+        (status = 429, description = "Batas laju terlampaui", body = Message),
+    )
+)]
+pub async fn index(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<LeaveList>> {
     let employee_id = user.require_employee()?;
     let rows = sqlx::query_as!(
         LeaveRow,
@@ -98,8 +118,10 @@ pub async fn index(State(state): State<AppState>, user: AuthUser) -> AppResult<J
     .fetch_all(&state.db)
     .await?;
 
-    let data: Vec<LeaveResource> = rows.into_iter().map(Into::into).collect();
-    Ok(Json(json!({ "data": data, "types": types })))
+    Ok(Json(LeaveList {
+        data: rows.into_iter().map(Into::into).collect(),
+        types,
+    }))
 }
 
 struct LeaveForm {
@@ -189,16 +211,27 @@ async fn validate(state: &AppState, input: &Input) -> AppResult<LeaveForm> {
 }
 
 /// `POST /api/leaves`: validasi, 403 tanpa pegawai, lalu `RequestLeave`.
+#[utoipa::path(
+    post, path = "/leaves", tag = "Cuti", operation_id = "createLeave",
+    request_body(content = LeaveRequest, content_type = "application/json"),
+    responses(
+        (status = 201, description = "Diajukan", body = Data<LeaveResource>),
+        (status = 401, description = "Token tidak sah", body = Message),
+        (status = 403, description = "Akun belum terhubung ke data pegawai", body = Message),
+        (status = 422, description = "Galat validasi atau penolakan aturan", body = Unprocessable),
+        (status = 429, description = "Batas laju terlampaui", body = Message),
+    )
+)]
 pub async fn store(
     State(state): State<AppState>,
     ActionLimited(user): ActionLimited,
     ClientIp(ip): ClientIp,
     input: Input,
-) -> AppResult<(StatusCode, Json<Value>)> {
+) -> AppResult<(StatusCode, Json<Data<LeaveResource>>)> {
     let form = validate(&state, &input).await?;
     let employee_id = user.require_employee()?;
     let leave = request_leave(&state, &user, employee_id, form, &ip.to_string()).await?;
-    Ok((StatusCode::CREATED, Json(json!({ "data": leave }))))
+    Ok((StatusCode::CREATED, Json(Data { data: leave })))
 }
 
 async fn request_leave(

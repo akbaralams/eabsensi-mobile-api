@@ -6,18 +6,19 @@ use axum::http::StatusCode;
 use axum::http::request::Parts;
 use chrono::{NaiveDate, NaiveTime};
 use serde::Serialize;
-use serde_json::{Value, json};
+use utoipa::ToSchema;
 
 use crate::app::route_not_found_error;
 use crate::auth::{ActionLimited, AuthUser, NO_EMPLOYEE};
 use crate::employees;
 use crate::error::{AppError, AppResult};
 use crate::input::Input;
+use crate::openapi::{Data, EvidenceForm, Message, Unprocessable};
 use crate::photos::{self, Evidence};
 use crate::state::AppState;
 use crate::time::{iso8601, local_date, naive_utc};
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq, ToSchema)]
 pub struct EventResource {
     pub id: i64,
     pub name: String,
@@ -25,6 +26,12 @@ pub struct EventResource {
     pub starts_at: String,
     pub ends_at: String,
     pub checked_in: bool,
+}
+
+#[derive(Debug, Serialize, PartialEq, ToSchema)]
+pub struct EventCheckIn {
+    pub event_id: i64,
+    pub checked_in_at: String,
 }
 
 fn hhmm(time: NaiveTime) -> String {
@@ -42,7 +49,19 @@ struct EventListRow {
 
 /// `GET /api/events`: event aktif hari ini (zona bisnis) untuk semua pegawai, atau untuk department
 /// pegawai beserta seluruh induknya; urut jam mulai.
-pub async fn index(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
+#[utoipa::path(
+    get, path = "/events", tag = "Event", operation_id = "listEvents",
+    responses(
+        (status = 200, description = "Daftar event", body = Data<Vec<EventResource>>),
+        (status = 401, description = "Token tidak sah", body = Message),
+        (status = 403, description = "Akun belum terhubung ke data pegawai", body = Message),
+        (status = 429, description = "Batas laju terlampaui", body = Message),
+    )
+)]
+pub async fn index(
+    State(state): State<AppState>,
+    user: AuthUser,
+) -> AppResult<Json<Data<Vec<EventResource>>>> {
     let employee_id = user.require_employee()?;
     let today = local_date(state.now(), state.config.timezone);
 
@@ -69,7 +88,7 @@ pub async fn index(State(state): State<AppState>, user: AuthUser) -> AppResult<J
     .fetch_all(&state.db)
     .await?;
 
-    let data: Vec<EventResource> = rows
+    let data = rows
         .into_iter()
         .map(|r| EventResource {
             id: r.id,
@@ -80,7 +99,7 @@ pub async fn index(State(state): State<AppState>, user: AuthUser) -> AppResult<J
             checked_in: r.checked_in,
         })
         .collect();
-    Ok(Json(json!({ "data": data })))
+    Ok(Json(Data { data }))
 }
 
 /// Segmen `{event}` harus angka (`whereNumber`); selain itu rute dianggap tidak ada, sebelum autentikasi.
@@ -121,12 +140,24 @@ struct EventRow {
 }
 
 /// `POST /api/events/{event}/check-in`: validasi form, cari event (404), lalu aturan `CheckInToEvent`.
+#[utoipa::path(
+    post, path = "/events/{event}/check-in", tag = "Event", operation_id = "checkInEvent",
+    params(("event" = i64, Path, description = "Id event")),
+    request_body(content = EvidenceForm, content_type = "multipart/form-data"),
+    responses(
+        (status = 201, description = "Tercatat", body = Data<EventCheckIn>),
+        (status = 401, description = "Token tidak sah", body = Message),
+        (status = 404, description = "Event tidak ditemukan", body = Message),
+        (status = 422, description = "Galat validasi atau penolakan aturan", body = Unprocessable),
+        (status = 429, description = "Batas laju terlampaui", body = Message),
+    )
+)]
 pub async fn check_in(
     EventId(segment): EventId,
     State(state): State<AppState>,
     ActionLimited(user): ActionLimited,
     input: Input,
-) -> AppResult<(StatusCode, Json<Value>)> {
+) -> AppResult<(StatusCode, Json<Data<EventCheckIn>>)> {
     let evidence = photos::validate_evidence(&input, state.config.requires_photo)?;
 
     let not_found = || {
@@ -147,7 +178,12 @@ pub async fn check_in(
     let checked_in_at = record_check_in(&state, &user, &event, evidence).await?;
     Ok((
         StatusCode::CREATED,
-        Json(json!({ "data": { "event_id": event.id, "checked_in_at": checked_in_at } })),
+        Json(Data {
+            data: EventCheckIn {
+                event_id: event.id,
+                checked_in_at,
+            },
+        }),
     ))
 }
 

@@ -10,6 +10,7 @@ Aturan di `CLAUDE.md`: bila dokumen dan kode Laravel berbeda, kode Laravel yang 
 | Folder foto check-in event | tidak didokumentasikan | `event-attendance/Y/m/d/<kode department>/`, tanggal **UTC** (`CheckInToEvent` memakai `copy()`) |
 | Punch oleh akun tanpa pegawai | "Ditolak 422" | 422 dari action untuk `POST /punches` dan check-in, tetapi 403 untuk `GET /punches`, `GET /events`, `GET/POST /leaves` |
 | Urutan cek check-in | - | validasi form (foto dst.) dulu, baru event dicari (404), baru aturan action |
+| `username` di profil (`/me`, login) | OpenAPI: string wajib, tidak nullable | `users.username` boleh NULL; Laravel mengirim `null` untuk akun tanpa username (login dengan email). OpenAPI diperbaiki menjadi `[string, 'null']` |
 | 404 event tidak ada | `{"message"}` | pesan Laravel apa adanya: `No query results for model [App\Models\AttendanceEvent] <id>` |
 
 ## Bug Laravel yang tidak ditiru

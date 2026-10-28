@@ -2,6 +2,7 @@
 
 use serde::Serialize;
 use sqlx::PgPool;
+use utoipa::ToSchema;
 
 use crate::config::Config;
 use crate::error::AppResult;
@@ -32,20 +33,25 @@ pub async fn find_with_department(db: &PgPool, id: i64) -> AppResult<Option<Empl
     Ok(row)
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq, ToSchema)]
 pub struct EmployeeSummary {
     pub id: i64,
     pub employee_number: String,
     pub name: String,
+    /// Nama department.
+    #[schema(required = true)]
     pub department: Option<String>,
 }
 
 /// `MeResource`: profil pengguna dan pengaturan aplikasi.
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq, ToSchema)]
 pub struct Me {
     pub id: i64,
     pub name: String,
+    /// `null` bila akun tidak punya username (login dengan email).
+    #[schema(required = true)]
     pub username: Option<String>,
+    #[schema(required = true)]
     pub employee: Option<EmployeeSummary>,
     pub timezone: String,
     pub requires_photo: bool,

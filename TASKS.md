@@ -39,7 +39,7 @@ Sumber kontrak saat ini ada di `../eabsensi-v2` branch `claude/kontrak-mobile` (
 - `GET /api/leaves` (`data` + `types`), `POST /api/leaves` (rentang < 62 hari, tumpang tindih pending/approved, audit `leave.requested`).
 - **Selesai bila**: seluruh suite (4 file) hijau terhadap Rust dan tetap hijau terhadap Laravel; job suite kontrak di CI tidak lagi `continue-on-error`.
 
-## [ ] Task 7. OpenAPI dari kode
+## [x] Task 7. OpenAPI dari kode
 - Hasilkan OpenAPI dari kode (mis. `utoipa`), bandingkan dengan `docs/openapi.yaml` di CI (beda bentuk = gagal).
 - **Selesai bila**: CI gagal saat bentuk respons diubah tanpa memperbarui `docs/openapi.yaml`.
 
