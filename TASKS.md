@@ -4,19 +4,19 @@ Urutan wajib. Tiap task selesai bila kriteria "Selesai bila" terpenuhi dan sudah
 
 Sumber kontrak saat ini ada di `../eabsensi-v2` branch `claude/kontrak-mobile` (atau `master` setelah PR-nya di-merge): `docs/mobile-api.md`, `docs/openapi/mobile-api.yaml`, `docs/openapi/redocly.yaml`, `tests/contract/mobile/`, `scripts/contract-test.sh`, `database/seeders/ContractTestSeeder.php`, `database/dumps/pgsql-schema.sql`.
 
-## [ ] Task 0. Toolchain
+## [x] Task 0. Toolchain
 - Minta user memasang Rust (rustup, toolchain stable MSVC; butuh Visual Studio Build Tools "Desktop development with C++"). Jangan memasang sendiri tanpa izin.
 - Pasang `sqlx-cli` (fitur postgres saja).
 - **Selesai bila**: `cargo --version`, `rustc --version`, `sqlx --version` jalan; dicatat di README.
 
-## [ ] Task 1. Pindahkan kontrak ke repo ini
+## [x] Task 1. Pindahkan kontrak ke repo ini
 - Salin dari `../eabsensi-v2`: suite Hurl + fixtures ke `tests/contract/`, `docs/mobile-api.md` ke `docs/api.md`, OpenAPI ke `docs/openapi.yaml` (+ `redocly.yaml`), dump skema ke `schema/pgsql-schema.sql`.
 - `SCHEMA_VERSION` berisi commit SHA `eabsensi-v2` asal dump (ganti ke tag `vX.Y.Z` begitu repo itu punya tag rilis).
 - Padankan `ContractTestSeeder` dengan `tests/contract/fixtures.sql` (SQL idempoten: department `KONTRAK`, pegawai `KTR-001`/`KTR-002`, empat akun `kontrak*` dengan hash bcrypt dari password uji `kontrak-uji-2026`, dua event hari ini, hapus jejak uji lama). Event harus memakai tanggal hari ini (`CURRENT_DATE` di zona `Asia/Jakarta`).
 - `scripts/contract-test.sh`: muat fixture lewat `psql` lalu `hurl --test --jobs 1`, dengan `BASE_URL`.
 - **Selesai bila**: suite yang sudah dipindah, dengan fixture SQL, hijau terhadap Laravel (`php artisan serve` di `../eabsensi-v2`, database dev). Ini membuktikan fixture setara seeder sebelum ada kode Rust.
 
-## [ ] Task 2. Kerangka service
+## [x] Task 2. Kerangka service
 - Crate biner `eabsensi-mobile-api`: axum + tokio, tower-http (trace, request-id, timeout, batas body 5 MB), sqlx (postgres, offline), tracing log JSON, config dari env, `/healthz` (di luar `/api`).
 - Tipe galat tunggal yang menghasilkan bentuk JSON Laravel (401 `{"message":"Unauthenticated."}`, 404, 422 validasi dengan `errors`, 422 aturan, 429).
 - CI GitHub Actions: service Postgres, muat `schema/pgsql-schema.sql`, `cargo sqlx prepare --check`, fmt, clippy, test, lint OpenAPI, lalu suite kontrak terhadap binary yang berjalan (boleh `continue-on-error` sampai Task 6).
