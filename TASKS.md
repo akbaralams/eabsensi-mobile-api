@@ -31,7 +31,7 @@ Sumber kontrak saat ini ada di `../eabsensi-v2` branch `claude/kontrak-mobile` (
 - `POST /api/punches` (multipart, foto jpg/png ≤ 4 MB dicek dari isi berkas, lat/long berpasangan, interval minimum, periode terkunci, status pending/approved), `GET /api/punches?date=`.
 - **Selesai bila**: `02-punches.hurl` hijau terhadap Rust; foto tersimpan dengan tata letak yang sama dan tampil di halaman persetujuan punch web.
 
-## [ ] Task 5. Event
+## [x] Task 5. Event
 - `GET /api/events`, `POST /api/events/{id}/check-in` (peserta: semua atau department pegawai beserta induknya; tanggal dan jam di zona bisnis; sekali per pegawai).
 - **Selesai bila**: `03-events.hurl` hijau terhadap Rust.
 

@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH RECURSIVE tree(id) AS (\n                   SELECT id FROM departments WHERE id = $1\n                   UNION\n                   SELECT d.id FROM departments d JOIN tree t ON d.parent_id = t.id\n               )\n               SELECT EXISTS (\n                   SELECT 1 FROM employees WHERE id = $2 AND department_id IN (SELECT id FROM tree)\n               ) AS \"eligible!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "eligible!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "acaeaa359468f575f29faf00d6892bb7128ec5495731b5e34a81d9c938f647b9"
+}

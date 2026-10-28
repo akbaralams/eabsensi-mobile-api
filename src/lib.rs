@@ -5,6 +5,7 @@ pub mod auth;
 pub mod config;
 pub mod employees;
 pub mod error;
+pub mod events;
 pub mod health;
 pub mod input;
 pub mod net;

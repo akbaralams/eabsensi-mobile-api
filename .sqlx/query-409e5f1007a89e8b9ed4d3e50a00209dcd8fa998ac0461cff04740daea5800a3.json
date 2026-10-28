@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO event_attendances\n               (event_id, employee_id, checked_in_at, photo_path, latitude, longitude, accuracy_meters, created_at, updated_at)\n           VALUES ($1, $2, $3, $4, $5::float8, $6::float8, $7, $8, $8)\n           ON CONFLICT (event_id, employee_id) DO NOTHING\n           RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "event_attendances",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Timestamptz",
+        "Varchar",
+        "Float8",
+        "Float8",
+        "Int2",
+        "Timestamp"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "409e5f1007a89e8b9ed4d3e50a00209dcd8fa998ac0461cff04740daea5800a3"
+}
