@@ -11,6 +11,7 @@
 #   SEED_CONTRACT_PASSWORD   password akun kontrak* (default kontrak-uji-2026, sama dengan fixture)
 #   ATTENDANCE_TIMEZONE      zona bisnis untuk tanggal event fixture (default Asia/Jakarta)
 #   SKIP_SEED=1              lewati fixture (database sudah disiapkan)
+#   INCLUDE_V2=1             ikut jalankan tests/contract/v2 (hanya service Rust; Laravel tidak punya /api/v2)
 #   PSQL, HURL               path biner bila tidak ada di PATH
 # Argumen tambahan diteruskan ke hurl (mis. tests/contract/01-auth.hurl untuk satu file saja).
 set -euo pipefail
@@ -44,6 +45,9 @@ if [ "$#" -gt 0 ]; then
     files=("$@")
 else
     files=("$ROOT"/tests/contract/*.hurl)
+    if [ "${INCLUDE_V2:-0}" = "1" ]; then
+        files+=("$ROOT"/tests/contract/v2/*.hurl)
+    fi
 fi
 
 # --jobs 1: berurutan, karena punch punya interval minimum dan file saling bergantung pada fixture yang sama.

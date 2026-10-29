@@ -61,6 +61,10 @@ pub struct Config {
     pub token_expiration_minutes: i64,
     pub token_prefix: String,
     pub token_last_used_debounce: Duration,
+    /// `/api/v2`: masa berlaku token akses (dibatasi juga oleh `SANCTUM_TOKEN_EXPIRATION`).
+    pub access_token_ttl: Duration,
+    /// `/api/v2`: masa berlaku refresh token; diperpanjang setiap kali dipakai (rotasi).
+    pub refresh_token_ttl: Duration,
 
     pub photo_root: PathBuf,
     pub photo_file_mode: u32,
@@ -157,6 +161,12 @@ impl Config {
             token_expiration_minutes: laravel_int(raw("SANCTUM_TOKEN_EXPIRATION"), 43200),
             // Prefix tidak di-trim: Laravel memakai nilainya apa adanya.
             token_prefix: raw("SANCTUM_TOKEN_PREFIX").unwrap_or_default(),
+            access_token_ttl: Duration::from_secs(
+                60 * parse::<u64>(&get, "MOBILE_ACCESS_TOKEN_TTL_MINUTES", "10080")?,
+            ),
+            refresh_token_ttl: Duration::from_secs(
+                60 * parse::<u64>(&get, "MOBILE_REFRESH_TOKEN_TTL_MINUTES", "129600")?,
+            ),
             token_last_used_debounce: Duration::from_secs(parse(
                 &get,
                 "TOKEN_LAST_USED_DEBOUNCE_SECS",

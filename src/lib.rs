@@ -2,6 +2,7 @@
 
 pub mod app;
 pub mod auth;
+pub mod auth_v2;
 pub mod config;
 pub mod employees;
 pub mod error;

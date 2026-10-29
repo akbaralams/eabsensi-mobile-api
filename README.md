@@ -12,6 +12,7 @@ Konteks dan aturan: [CLAUDE.md](CLAUDE.md). Urutan pekerjaan: [TASKS.md](TASKS.m
 | `GET /api/punches?date=`, `POST /api/punches` | Riwayat per hari, punch dengan foto dan lokasi (waktu dari server) |
 | `GET /api/events`, `POST /api/events/{id}/check-in` | Event hari ini dan check-in sekali per pegawai |
 | `GET /api/leaves`, `POST /api/leaves` | Pengajuan cuti, audit `leave.requested` |
+| `POST /api/v2/auth/login`, `/refresh`, `/logout` | Tambahan v2: token akses + refresh token berotasi (khusus Rust) |
 | `GET /healthz`, `GET /livez` | Health check untuk load balancer (di luar `/api`) |
 
 Kontrak: [docs/api.md](docs/api.md) (naratif) dan [docs/openapi.yaml](docs/openapi.yaml) (OpenAPI 3.1, dijaga sebentuk dengan kode oleh `tests/openapi.rs`; `cargo run --bin openapi` mencetak versi dari kode).

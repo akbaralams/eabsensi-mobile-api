@@ -1,0 +1,101 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT t.token AS \"token!\", t.abilities, t.expires_at, t.name AS \"name!\",\n                  u.id AS \"user_id!\", u.is_active AS \"is_active!\", u.employee_id\n           FROM personal_access_tokens t\n           JOIN users u ON u.id = t.tokenable_id AND t.tokenable_type = $2\n           WHERE t.id = $1\n           FOR UPDATE OF t",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "token!",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "personal_access_tokens",
+            "name": "token"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "abilities",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "personal_access_tokens",
+            "name": "abilities"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "expires_at",
+        "type_info": "Timestamp",
+        "origin": {
+          "Table": {
+            "table": "personal_access_tokens",
+            "name": "expires_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "name!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "personal_access_tokens",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "user_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "users",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "is_active!",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "users",
+            "name": "is_active"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "employee_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "users",
+            "name": "employee_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "a6eb8142cc040646385438d4a30427c4dd814ef3cd33e3a238d3e9021eb26d72"
+}

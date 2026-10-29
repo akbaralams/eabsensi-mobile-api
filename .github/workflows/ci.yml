@@ -93,7 +93,7 @@ jobs:
           ./target/release/eabsensi-mobile-api > service.log 2>&1 &
           for i in $(seq 1 30); do curl -fs http://127.0.0.1:8080/healthz && break; sleep 1; done
       - name: Suite kontrak
-        run: BASE_URL=http://127.0.0.1:8080 bash scripts/contract-test.sh
+        run: BASE_URL=http://127.0.0.1:8080 INCLUDE_V2=1 bash scripts/contract-test.sh
       - name: Log service
         if: always()
         run: cat service.log

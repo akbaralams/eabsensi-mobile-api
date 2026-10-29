@@ -51,3 +51,15 @@ Ditolak 422 dengan `message`: akun tanpa pegawai, pegawai nonaktif, punch lagi s
 ## Catatan operasional
 Foto disimpan di disk `local` pada `mobile-punches/Y/m/d/<kode department>/` dan hanya bisa dilihat lewat halaman persetujuan oleh user yang berwenang atas pegawainya.
 Hubungkan akun pengguna ke pegawai lewat kolom `users.employee_id` (UI pengelolaan pengguna menyusul).
+
+## API v2: refresh token (service Rust saja)
+
+Tambahan, tidak mengubah endpoint di atas. Laravel tidak punya `/api/v2`, jadi aplikasi baru memakainya setelah cutover ke Rust.
+
+- `POST /api/v2/auth/login`: body sama dengan login v1. 200: `{ token, token_expires_at, refresh_token, refresh_expires_at, user }`. Galat dan batas laju sama dengan v1.
+- `POST /api/v2/auth/refresh` (JSON `refresh_token`, tanpa Bearer): 200 `{ token, token_expires_at, refresh_token, refresh_expires_at }`. Refresh token lama langsung tidak berlaku (rotasi). 401 bila tidak sah, kedaluwarsa, sudah dipakai, atau akun nonaktif; 403 bila akun tidak lagi terhubung ke pegawai.
+- `POST /api/v2/auth/logout` (Bearer token akses): mencabut token akses dan refresh token perangkat ini.
+
+Token akses berlaku `MOBILE_ACCESS_TOKEN_TTL_MINUTES` (default 7 hari, paling lama `SANCTUM_TOKEN_EXPIRATION`) dan dipakai ke semua endpoint `/api/*`. Refresh token berlaku `MOBILE_REFRESH_TOKEN_TTL_MINUTES` (default 90 hari) sejak terakhir dipakai, jadi pegawai yang membuka aplikasi minimal sekali dalam 90 hari tidak pernah perlu login ulang. Refresh token sebagai Bearer ditolak 403. Pencabutan dari web (ganti sandi, nonaktifkan akun) ikut mencabut refresh token.
+
+Alur di aplikasi: simpan kedua token di penyimpanan aman. Saat aplikasi dibuka, bila `token_expires_at` kurang dari 1 hari lagi, panggil refresh. Bila endpoint mana pun membalas 401, coba refresh sekali; bila refresh juga 401, hapus token dan kembali ke login. Jangan memanggil refresh bersamaan dari dua tempat (hanya satu yang berhasil).

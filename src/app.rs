@@ -21,7 +21,7 @@ use tracing::Level;
 
 use crate::error::AppError;
 use crate::state::AppState;
-use crate::{auth, events, health, leaves, punches};
+use crate::{auth, auth_v2, events, health, leaves, punches};
 
 /// Batas body request (foto maks 4 MB + field lain).
 pub const BODY_LIMIT: usize = 5 * 1024 * 1024;
@@ -42,6 +42,10 @@ pub fn router(state: AppState) -> Router {
         .route("/events", get(events::index))
         .route("/events/{event}/check-in", post(events::check_in))
         .route("/leaves", get(leaves::index).post(leaves::store))
+        // v2: tambahan (refresh token). Endpoint data tetap di /api/* dan menerima token v2.
+        .route("/v2/auth/login", post(auth_v2::login))
+        .route("/v2/auth/refresh", post(auth_v2::refresh))
+        .route("/v2/auth/logout", post(auth_v2::logout))
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             limit_concurrency,
@@ -175,7 +179,11 @@ async fn route_not_found(uri: Uri) -> AppError {
 async fn method_not_allowed(method: Method, uri: Uri) -> AppError {
     let path = laravel_path(&uri);
     let allowed = match path.as_str() {
-        "api/auth/login" | "api/auth/logout" => "POST",
+        "api/auth/login"
+        | "api/auth/logout"
+        | "api/v2/auth/login"
+        | "api/v2/auth/refresh"
+        | "api/v2/auth/logout" => "POST",
         "api/me" | "api/events" | "healthz" | "livez" => "GET, HEAD",
         "api/punches" | "api/leaves" => "GET, HEAD, POST",
         p if p.starts_with("api/events/") && p.ends_with("/check-in") => "POST",

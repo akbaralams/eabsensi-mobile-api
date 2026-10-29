@@ -366,6 +366,55 @@ pub async fn login(
     headers: HeaderMap,
     input: Input,
 ) -> AppResult<Json<LoginResponse>> {
+    let (user, device_name) = authenticate(&state, ip, &headers, &input).await?;
+
+    let now = state.now();
+    let mut tx = state.db.begin().await?;
+    // Satu perangkat satu token: token lama dengan device_name yang sama dicabut.
+    revoke_device(&mut tx, user.id, &device_name).await?;
+    let token = issue_token(
+        &mut tx,
+        user.id,
+        &device_name,
+        MOBILE_ABILITY,
+        None,
+        now,
+        &state.config.token_prefix,
+    )
+    .await?;
+    tx.commit().await?;
+
+    let me = employees::me(&state.db, &state.config, user.identity()).await?;
+    Ok(Json(LoginResponse { token, user: me }))
+}
+
+/// Pengguna yang lolos login (sandi cocok, aktif, terhubung ke pegawai).
+pub(crate) struct Authenticated {
+    pub id: i64,
+    pub name: String,
+    pub username: Option<String>,
+    pub employee_id: Option<i64>,
+}
+
+impl Authenticated {
+    pub fn identity(&self) -> UserIdentity<'_> {
+        UserIdentity {
+            id: self.id,
+            name: &self.name,
+            username: self.username.as_deref(),
+            employee_id: self.employee_id,
+        }
+    }
+}
+
+/// Batas laju login, validasi, dan verifikasi sandi (`AuthController::login` sampai sebelum membuat token).
+/// Dipakai `/api/auth/login` dan `/api/v2/auth/login`.
+pub(crate) async fn authenticate(
+    state: &AppState,
+    ip: std::net::IpAddr,
+    headers: &HeaderMap,
+    input: &Input,
+) -> AppResult<(Authenticated, String)> {
     let limits = &state.config.rate_limits;
     // throttle:api (grup api): per token bila ada header Bearer, selain itu per IP.
     // Batas per IP bisa dilonggarkan terpisah: di belakang NAT kantor ribuan pegawai berbagi satu IP.
@@ -396,63 +445,74 @@ pub async fn login(
         ])
         .await?;
 
-    let form = validate_login(&input)?;
+    let form = validate_login(input)?;
 
     // Pesan sama untuk user tidak ada, akun nonaktif, dan sandi salah agar tidak membocorkan akun.
-    let user = match find_by_login(&state, &form.login).await? {
+    let user = match find_by_login(state, &form.login).await? {
         Some(user) if user.is_active => user,
         _ => return Err(AppError::rule(BAD_CREDENTIALS)),
     };
-    if !verify_password(&state, form.password, user.password.clone()).await? {
+    if !verify_password(state, form.password, user.password.clone()).await? {
         return Err(AppError::rule(BAD_CREDENTIALS));
     }
     if user.employee_id.is_none() {
         return Err(AppError::Forbidden(NO_EMPLOYEE.into()));
     }
+    Ok((
+        Authenticated {
+            id: user.id,
+            name: user.name,
+            username: user.username,
+            employee_id: user.employee_id,
+        },
+        form.device_name,
+    ))
+}
 
-    let secret = token::generate_secret(&state.config.token_prefix);
-    let now = naive_utc(state.now());
-    let mut tx = state.db.begin().await?;
-    // Satu perangkat satu token: token lama dengan device_name yang sama dicabut.
+/// Hapus semua token (akses dan refresh) milik pengguna untuk satu perangkat.
+pub(crate) async fn revoke_device(
+    tx: &mut sqlx::PgConnection,
+    user_id: i64,
+    device_name: &str,
+) -> AppResult<()> {
     sqlx::query!(
         "DELETE FROM personal_access_tokens WHERE tokenable_type = $1 AND tokenable_id = $2 AND name = $3",
         TOKENABLE_TYPE,
-        user.id,
-        form.device_name
+        user_id,
+        device_name
     )
     .execute(&mut *tx)
     .await?;
-    let token_id = sqlx::query_scalar!(
+    Ok(())
+}
+
+/// Buat token format Sanctum (`<id>|<rahasia>`) dengan satu ability; `expires_at` opsional.
+pub(crate) async fn issue_token(
+    tx: &mut sqlx::PgConnection,
+    user_id: i64,
+    device_name: &str,
+    ability: &str,
+    expires_at: Option<DateTime<Utc>>,
+    now: DateTime<Utc>,
+    prefix: &str,
+) -> AppResult<String> {
+    let secret = token::generate_secret(prefix);
+    let now = naive_utc(now);
+    let id = sqlx::query_scalar!(
         r#"INSERT INTO personal_access_tokens (tokenable_type, tokenable_id, name, token, abilities, expires_at, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, NULL, $6, $6)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
            RETURNING id"#,
         TOKENABLE_TYPE,
-        user.id,
-        form.device_name,
+        user_id,
+        device_name,
         token::sha256_hex(&secret),
-        json!([MOBILE_ABILITY]).to_string(),
+        json!([ability]).to_string(),
+        expires_at.map(naive_utc),
         now
     )
     .fetch_one(&mut *tx)
     .await?;
-    tx.commit().await?;
-
-    let me = employees::me(
-        &state.db,
-        &state.config,
-        UserIdentity {
-            id: user.id,
-            name: &user.name,
-            username: user.username.as_deref(),
-            employee_id: user.employee_id,
-        },
-    )
-    .await?;
-
-    Ok(Json(LoginResponse {
-        token: format!("{token_id}|{secret}"),
-        user: me,
-    }))
+    Ok(format!("{id}|{secret}"))
 }
 
 /// Cabut token yang sedang dipakai.

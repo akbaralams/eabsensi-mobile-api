@@ -86,6 +86,77 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
 
+  /v2/auth/login:
+    post:
+      tags: [Auth]
+      operationId: loginV2
+      summary: Masuk dan dapatkan token akses + refresh token (v2)
+      description: |
+        Aturan, pesan galat, dan batas laju sama dengan `POST /auth/login`. Token akses berlaku
+        `MOBILE_ACCESS_TOKEN_TTL_MINUTES` (default 7 hari) dan dipakai ke semua endpoint `/api/*` seperti token v1.
+        Refresh token (default 90 hari) hanya untuk `POST /v2/auth/refresh`; sebagai Bearer ditolak 403.
+        Satu perangkat satu pasangan token: login ulang dengan `device_name` yang sama mencabut pasangan lama.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Berhasil
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginV2Response' }
+        '403':
+          description: Akun belum terhubung ke data pegawai
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Message' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /v2/auth/refresh:
+    post:
+      tags: [Auth]
+      operationId: refreshToken
+      summary: Tukar refresh token dengan pasangan token baru (rotasi)
+      description: |
+        Refresh token lama langsung tidak berlaku. Tidak memakai sandi, jadi murah. Panggil sebelum
+        `token_expires_at` lewat (mis. saat aplikasi dibuka dan sisa masa berlaku < 1 hari) atau setelah 401.
+        401 berarti refresh token tidak sah, kedaluwarsa, sudah dipakai, atau akun dinonaktifkan: kembali ke login.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RefreshRequest' }
+      responses:
+        '200':
+          description: Pasangan token baru
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenPair' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/NoEmployee' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /v2/auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logoutV2
+      summary: Cabut token akses dan refresh token perangkat ini
+      responses:
+        '200':
+          description: Berhasil
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Message' }
+              example: { message: Berhasil keluar. }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
   /me:
     get:
       tags: [Auth]
@@ -300,6 +371,31 @@ components:
       required: [token, user]
       properties:
         token: { type: string, example: '12|Q3m4x...' }
+        user: { $ref: '#/components/schemas/Me' }
+
+    RefreshRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token: { type: string, maxLength: 255 }
+
+    TokenPair:
+      type: object
+      required: [token, token_expires_at, refresh_token, refresh_expires_at]
+      properties:
+        token: { type: string, description: Token akses untuk header Authorization Bearer }
+        token_expires_at: { type: string, format: date-time }
+        refresh_token: { type: string, description: Simpan aman; hanya untuk POST /v2/auth/refresh }
+        refresh_expires_at: { type: string, format: date-time }
+
+    LoginV2Response:
+      type: object
+      required: [token, token_expires_at, refresh_token, refresh_expires_at, user]
+      properties:
+        token: { type: string }
+        token_expires_at: { type: string, format: date-time }
+        refresh_token: { type: string }
+        refresh_expires_at: { type: string, format: date-time }
         user: { $ref: '#/components/schemas/Me' }
 
     Me:

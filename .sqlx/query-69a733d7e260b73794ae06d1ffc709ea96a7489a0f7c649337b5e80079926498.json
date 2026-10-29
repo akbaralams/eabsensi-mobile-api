@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO personal_access_tokens (tokenable_type, tokenable_id, name, token, abilities, expires_at, created_at, updated_at)\n           VALUES ($1, $2, $3, $4, $5, NULL, $6, $6)\n           RETURNING id",
+  "query": "INSERT INTO personal_access_tokens (tokenable_type, tokenable_id, name, token, abilities, expires_at, created_at, updated_at)\n           VALUES ($1, $2, $3, $4, $5, $6, $7, $7)\n           RETURNING id",
   "describe": {
     "columns": [
       {
@@ -22,6 +22,7 @@
         "Text",
         "Varchar",
         "Text",
+        "Timestamp",
         "Timestamp"
       ]
     },
@@ -29,5 +30,5 @@
       false
     ]
   },
-  "hash": "261f0b3d47ff88f7a133a53b0bf83dcbd93b44eb3bb2474e5aa00f54a2ea5aea"
+  "hash": "69a733d7e260b73794ae06d1ffc709ea96a7489a0f7c649337b5e80079926498"
 }

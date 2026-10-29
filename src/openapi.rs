@@ -12,7 +12,7 @@ use serde_json::{Map, Value, json};
 use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
 use utoipa::{Modify, OpenApi, ToSchema};
 
-use crate::{auth, events, leaves, punches};
+use crate::{auth, auth_v2, events, leaves, punches};
 
 /// Amplop `{"data": ...}` seperti JsonResource Laravel.
 #[derive(Debug, Serialize, ToSchema)]
@@ -62,6 +62,12 @@ pub struct EvidenceForm {
     pub accuracy: i32,
 }
 
+/// Body `POST /v2/auth/refresh`.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct RefreshRequest {
+    pub refresh_token: String,
+}
+
 #[derive(Debug, Serialize, ToSchema)]
 pub struct LeaveRequest {
     pub attendance_status_id: i64,
@@ -93,11 +99,12 @@ impl Modify for BearerAuth {
     servers((url = "/api")),
     paths(
         auth::login, auth::logout, auth::me,
+        auth_v2::login, auth_v2::refresh, auth_v2::logout,
         punches::index, punches::store,
         events::index, events::check_in,
         leaves::index, leaves::store,
     ),
-    components(schemas(Message, ValidationError, Unprocessable, LoginRequest, EvidenceForm, LeaveRequest)),
+    components(schemas(Message, ValidationError, Unprocessable, LoginRequest, RefreshRequest, EvidenceForm, LeaveRequest)),
     security(("bearerAuth" = [])),
     modifiers(&BearerAuth),
 )]
@@ -364,6 +371,9 @@ mod tests {
                 "POST /events/{event}/check-in",
                 "POST /leaves",
                 "POST /punches",
+                "POST /v2/auth/login",
+                "POST /v2/auth/logout",
+                "POST /v2/auth/refresh",
             ]
         );
     }
