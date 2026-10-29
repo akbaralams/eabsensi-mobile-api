@@ -37,6 +37,8 @@ Laravel menerima `2026-02-30` (`Carbon::hasFormat` hanya memeriksa pola) lalu me
 
 ## Tambahan di Rust (tidak mengubah kontrak)
 
+- Batas laju per IP dilonggarkan (keputusan pemilik produk, 30 Oktober 2026): login 600/menit (Laravel 60) dan request tanpa token 1.200/menit (Laravel 120), karena pegawai di Wi-Fi kantor keluar lewat satu IP publik (NAT). Batas per akun (5/menit), per token (120/menit), dan aksi (20/menit) tetap sama.
+
 - Punch dan pengajuan cuti per pegawai diserialkan dengan advisory lock Postgres; dua request serentak tidak bisa sama-sama lolos cek interval/tumpang tindih. Check-in memakai unique constraint `(event_id, employee_id)`.
 - Foto ditulis ke berkas sementara lalu di-rename, dan dihapus bila transaksi database gagal.
 - Jenis foto ditentukan dari isi berkas (magic bytes), bukan dari nama berkas atau content-type kiriman klien. Perbaikan di Laravel: `->utc()` pada kedua batas di `forEmployeeBetween` (atau di controller). Pola yang sama perlu dicek di `between()` dan `inTree()` repository yang sama (kalkulator dan laporan web).

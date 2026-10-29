@@ -190,10 +190,12 @@ impl Config {
             shutdown_drain: Duration::from_secs(parse(&get, "SHUTDOWN_DRAIN_SECS", "0")?),
 
             rate_limits: RateLimits {
-                login_per_ip: parse(&get, "RATE_LIMIT_LOGIN_PER_IP", "60")?,
+                // Per IP lebih longgar dari Laravel (60/120): di belakang NAT kantor satu IP publik
+                // dipakai ratusan pegawai. Perlindungan tebak sandi tetap dari batas per akun (5/menit).
+                login_per_ip: parse(&get, "RATE_LIMIT_LOGIN_PER_IP", "600")?,
                 login_per_account: parse(&get, "RATE_LIMIT_LOGIN_PER_ACCOUNT", "5")?,
                 api_per_token: parse(&get, "RATE_LIMIT_API_PER_TOKEN", "120")?,
-                api_per_ip: parse(&get, "RATE_LIMIT_API_PER_IP", "120")?,
+                api_per_ip: parse(&get, "RATE_LIMIT_API_PER_IP", "1200")?,
                 actions_per_user: parse(&get, "RATE_LIMIT_ACTIONS_PER_USER", "20")?,
             },
             rate_limit_store,
@@ -330,10 +332,16 @@ mod tests {
         assert_eq!(config.min_interval_seconds, 60);
         assert_eq!(config.token_expiration_minutes, 43200);
         assert_eq!(config.token_prefix, "");
-        assert_eq!(config.rate_limits.login_per_ip, 60);
+        assert_eq!(
+            config.rate_limits.login_per_ip, 600,
+            "dilonggarkan untuk NAT kantor"
+        );
         assert_eq!(config.rate_limits.login_per_account, 5);
         assert_eq!(config.rate_limits.api_per_token, 120);
-        assert_eq!(config.rate_limits.api_per_ip, 120);
+        assert_eq!(
+            config.rate_limits.api_per_ip, 1200,
+            "dilonggarkan untuk NAT kantor"
+        );
         assert_eq!(config.rate_limits.actions_per_user, 20);
         assert_eq!(config.rate_limit_store, RateLimitStoreKind::Memory);
     }
