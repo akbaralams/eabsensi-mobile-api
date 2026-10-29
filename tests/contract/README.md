@@ -35,7 +35,9 @@ DATABASE_URL=... BASE_URL=http://127.0.0.1:8000 bash scripts/contract-test.sh
 - Konfigurasi yang diasumsikan: nilai default `ATTENDANCE_*` (foto wajib, perlu persetujuan, interval 60 detik, zona `Asia/Jakarta`).
 - Data uji hanya dari `fixtures.sql`; tanggal cuti memakai tahun 2099 agar tidak bergantung pada hari ini.
 
-## Catatan: Laravel gagal di `02-punches.hurl` antara pukul 00:00 dan 07:00 WIB
+## Catatan: Laravel gagal di `02-punches.hurl` antara pukul 00:00 dan 07:00 WIB (sudah diperbaiki)
+
+Diperbaiki di eabsensi-v2 `928950b` (branch `claude/adms-schema`); versi Laravel sebelum commit itu masih gagal di jam tersebut.
 
 `GET /api/punches` di Laravel memakai batas hari zona bisnis tanpa konversi ke UTC, sementara sesi database UTC, jadi "hari ini" bergeser 7 jam. Punch pukul 01:00 WIB tanggal 29 muncul di `?date=28`. Ini bug di `eabsensi-v2` (`EloquentPunchRepository::forEmployeeBetween`), bukan di kontrak; service Rust menghitung batas hari dengan benar. Rincian di [docs/laravel-differences.md](../../docs/laravel-differences.md).
 

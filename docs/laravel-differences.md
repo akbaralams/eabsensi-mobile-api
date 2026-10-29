@@ -17,6 +17,8 @@ Aturan di `CLAUDE.md`: bila dokumen dan kode Laravel berbeda, kode Laravel yang 
 
 ### `GET /api/punches?date=` bergeser 7 jam
 
+**Diperbaiki** di eabsensi-v2 `928950b` (branch `claude/adms-schema`, belum di-merge ke master): suite kontrak hijau terhadap Laravel pada 00:10 WIB, 30 Oktober 2026.
+
 `PunchController::index` membentuk awal/akhir hari dengan `CarbonImmutable::parse($date, 'Asia/Jakarta')`, lalu `EloquentPunchRepository::forEmployeeBetween` meneruskannya ke `whereBetween`. Query builder memformat Carbon sebagai `Y-m-d H:i:s` **tanpa zona**, sementara sesi database UTC (`config/database.php`). Akibatnya "hari ini" di Laravel adalah 07:00 WIB hari ini sampai 07:00 WIB besok.
 
 Bukti (28-29 Oktober 2026, database uji): punch pukul `2026-10-29T01:00:13+07:00` kosong di `GET /api/punches` (hari ini) dan muncul di `?date=2026-10-28`. Suite `02-punches.hurl` gagal terhadap Laravel bila dijalankan antara 00:00 dan 07:00 WIB.
@@ -24,6 +26,8 @@ Bukti (28-29 Oktober 2026, database uji): punch pukul `2026-10-29T01:00:13+07:00
 Rust membandingkan `punched_at` dengan batas hari yang dikonversi ke UTC dengan benar.
 
 ### `accuracy` 32768-65535 membuat Laravel gagal 500
+
+**Diperbaiki** di eabsensi-v2 `ec6c874`: Laravel kini juga membatasi ke 32767 saat menyimpan.
 
 `MobilePunchRequest` mengizinkan `accuracy` sampai 65535, tetapi kolom `accuracy_meters` bertipe `smallint` (maks 32767), jadi insert Laravel gagal. Rust menerima nilai sesuai kontrak dan menyimpannya dibatasi 32767 (akurasi di atas 32 km tidak bermakna). Perbaikan di Laravel: `max:32767` atau kolom `integer`.
 
