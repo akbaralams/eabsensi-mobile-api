@@ -64,7 +64,7 @@ Semua komponen minimal dua (tidak ada titik gagal tunggal). Instance API statele
 | Server web (Laravel) | 2 | 4 vCPU, 8 GB RAM, SSD 60 GB | web operator, laporan, antrean job |
 | PostgreSQL | 2 | 16 vCPU, 64 GB RAM, NVMe 1 TB | primary + replika (failover); PgBouncer di depannya |
 | Redis | 3 | 2 vCPU, 4 GB RAM | batas laju bersama antar-instance API, Sentinel untuk failover |
-| Object storage S3-compatible | 1 klaster | kapasitas pakai ±6 TB/tahun (150 KB) atau ±2 TB (50 KB), replikasi/erasure coding | foto punch dan check-in, dibaca web lewat disk S3 Laravel. On-premise: mis. MinIO 4 node; atau layanan cloud |
+| Penyimpanan foto bersama | 1 | NAS/NFS ±6 TB/tahun (150 KB) atau ±2 TB (50 KB), RAID/replikasi | foto punch dan check-in; di-mount di semua server API dan web pada path `storage/app/private` Laravel (keputusan: foto tetap di sistem berkas, bukan S3). Object storage S3-compatible hanya alternatif bila suatu saat dipisah |
 | Monitoring | 1 | 4 vCPU, 8 GB RAM, SSD 500 GB | metrik (CPU, req/dtk, p95, koneksi DB), log terpusat, alarm |
 | Backup | 1 | ±2× ukuran DB + sesuai retensi foto, lokasi terpisah | backup database (PITR/WAL) + salinan bucket |
 | Internet | 1 | 1 Gbps (minimal 500 Mbps) | puncak unggah foto saat upacara |
@@ -76,7 +76,7 @@ Bila semua 64.000 pegawai harus login ulang dalam 5 menit (tanpa refresh token, 
 
 | | 2.000 | 64.000 |
 |---|---|---|
-| Jumlah server | 2 | 13 + klaster storage + backup |
+| Jumlah server | 2 | 13 + NAS foto + backup |
 | Total vCPU (tanpa storage) | 8 | ±80 |
 | Total RAM (tanpa storage) | 16 GB | ±200 GB |
 | Penyimpanan foto per tahun | ±170 GB | ±5,5 TB (±1,8 TB dengan kompresi) |
@@ -88,5 +88,5 @@ Bila semua 64.000 pegawai harus login ulang dalam 5 menit (tanpa refresh token, 
 1. **Ukuran foto**: kompres di aplikasi ke ±50 KB memangkas storage dan bandwidth hingga dua pertiga (perubahan di aplikasi Flutter, tanpa ubah kontrak).
 2. **Retensi foto**: berapa lama foto disimpan.
 3. **Refresh token**: menghilangkan lonjakan login, menahan jumlah server API di 3.
-4. **On-premise vs cloud** untuk object storage dan backup.
+4. **Penyimpanan foto**: skenario A memakai disk server aplikasi; skenario B butuh NAS/NFS bersama karena API berjalan di beberapa server.
 5. **F5 yang sudah ada** bisa menggantikan dua VM load balancer.
