@@ -62,6 +62,8 @@ Aturan berikut ditulis di dua tempat (Laravel dan repo ini). Mengubahnya butuh P
 - **Event**: peserta = semua pegawai atau subtree department event; tanggal dan jam di zona bisnis; satu check-in per pegawai.
 - **Cuti**: selisih tanggal < 62 hari; tidak tumpang tindih dengan pengajuan `pending`/`approved`; audit `leave.requested`.
 
+Rancangan fitur berikutnya (rekap bulanan, menu dinamis, persetujuan, notifikasi, QR, lampiran cuti): [docs/api-v2-design.md](docs/api-v2-design.md). Kebutuhan server untuk RAB: [docs/kebutuhan-infrastruktur.md](docs/kebutuhan-infrastruktur.md).
+
 Perbedaan yang ditemukan (dokumen vs kode Laravel, dan bug Laravel yang tidak ditiru): [docs/laravel-differences.md](docs/laravel-differences.md).
 
 ## Operasional
