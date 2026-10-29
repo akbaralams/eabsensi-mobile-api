@@ -1,5 +1,7 @@
 # Rancangan API v2: fitur aplikasi yang belum ada di kontrak
 
+`/api/v2` adalah **versi 2 API mobile** (endpoint tambahan untuk aplikasi pegawai), tidak berhubungan dengan repo web `eabsensi-v2`. Semua endpoint di sini untuk aplikasi mobile; kaitannya dengan `eabsensi-v2` hanya karena keduanya memakai database yang sama, jadi tabel/kolom baru tetap dibuat lewat migration di sana.
+
 Status: **rancangan, belum dikerjakan** (30 Oktober 2026). Sumber kebutuhan: domain aplikasi Flutter (`../eabsensi-mobile-app/lib/features/*/domain`, catatan "belum ada di kontrak") dan `docs/design/DEVIATIONS.md` di repo itu.
 
 Prinsip:

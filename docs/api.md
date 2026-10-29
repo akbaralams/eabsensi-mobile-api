@@ -54,6 +54,8 @@ Hubungkan akun pengguna ke pegawai lewat kolom `users.employee_id` (UI pengelola
 
 ## API v2: refresh token (service Rust saja)
 
+`/api/v2` adalah **versi 2 API mobile** (endpoint tambahan untuk aplikasi pegawai), tidak berhubungan dengan repo web `eabsensi-v2`.
+
 Tambahan, tidak mengubah endpoint di atas. Laravel tidak punya `/api/v2`, jadi aplikasi baru memakainya setelah cutover ke Rust.
 
 - `POST /api/v2/auth/login`: body sama dengan login v1. 200: `{ token, token_expires_at, refresh_token, refresh_expires_at, user }`. Galat dan batas laju sama dengan v1.
