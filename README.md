@@ -50,7 +50,7 @@ Sebelum commit: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, `cargo
 
 ## Konfigurasi
 
-Semua dari environment; daftar lengkap dan default di [.env.example](.env.example). Nilai yang **harus sama dengan `.env` Laravel**: `ATTENDANCE_TIMEZONE`, `ATTENDANCE_MOBILE_REQUIRES_APPROVAL`, `ATTENDANCE_MOBILE_REQUIRES_PHOTO`, `ATTENDANCE_MOBILE_MIN_INTERVAL`, `SANCTUM_TOKEN_EXPIRATION`, `SANCTUM_TOKEN_PREFIX`. `PHOTO_ROOT` harus folder `storage/app/private` Laravel.
+Semua dari environment; daftar lengkap dan default di [.env.example](.env.example). Nilai yang **harus sama dengan `.env` Laravel**: `ATTENDANCE_TIMEZONE`, `ATTENDANCE_MOBILE_REQUIRES_APPROVAL`, `ATTENDANCE_MOBILE_REQUIRES_PHOTO`, `ATTENDANCE_MOBILE_MIN_INTERVAL`, `ATTENDANCE_LOCATION_MAX_ACCURACY`, `ATTENDANCE_LOCATION_MAX_FIX_AGE`, `ATTENDANCE_LOCATION_MAX_SPEED_KMH`, `SANCTUM_TOKEN_EXPIRATION`, `SANCTUM_TOKEN_PREFIX`. `PHOTO_ROOT` harus folder `storage/app/private` Laravel.
 
 ## Aturan bersama dengan eabsensi-v2
 

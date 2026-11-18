@@ -6,6 +6,7 @@ use utoipa::ToSchema;
 
 use crate::config::Config;
 use crate::error::AppResult;
+use crate::geofence::{self, WorkLocation};
 
 #[derive(Debug, Clone)]
 pub struct Employee {
@@ -56,6 +57,8 @@ pub struct Me {
     pub timezone: String,
     pub requires_photo: bool,
     pub requires_approval: bool,
+    /// Lokasi yang berlaku untuk punch; `null` bila absen tidak dibatasi radius.
+    pub work_location: Option<WorkLocation>,
 }
 
 pub struct UserIdentity<'a> {
@@ -68,6 +71,10 @@ pub struct UserIdentity<'a> {
 pub async fn me(db: &PgPool, config: &Config, user: UserIdentity<'_>) -> AppResult<Me> {
     let employee = match user.employee_id {
         Some(id) => find_with_department(db, id).await?,
+        None => None,
+    };
+    let work_location = match &employee {
+        Some(employee) => geofence::for_employee(db, employee.id).await?,
         None => None,
     };
     Ok(Me {
@@ -83,5 +90,6 @@ pub async fn me(db: &PgPool, config: &Config, user: UserIdentity<'_>) -> AppResu
         timezone: config.timezone.name().to_string(),
         requires_photo: config.requires_photo,
         requires_approval: config.requires_approval,
+        work_location: work_location.as_ref().map(WorkLocation::from),
     })
 }

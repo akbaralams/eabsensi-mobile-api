@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict AFlH4KVJmzbk36SLF0mB2ziWbFqc0xcZ8uSLkbDNaYzWFQnjtUuAae5fpQGNg6z
+\restrict 2BC2CXqJc6q7KbohQ4VOuTWgNg3zCSBwA0DuwiBPPOvGk9yxtAYyITWV8dmRJxp
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -79,7 +79,11 @@ CREATE TABLE public.attendance_events (
     is_active boolean DEFAULT true NOT NULL,
     created_by bigint,
     created_at timestamp(0) without time zone,
-    updated_at timestamp(0) without time zone
+    updated_at timestamp(0) without time zone,
+    location_mode character varying(16) DEFAULT 'none'::character varying NOT NULL,
+    work_location_id bigint,
+    CONSTRAINT attendance_events_custom_location_check CHECK ((((location_mode)::text <> 'custom'::text) OR (work_location_id IS NOT NULL))),
+    CONSTRAINT attendance_events_location_mode_check CHECK (((location_mode)::text = ANY ((ARRAY['none'::character varying, 'employee'::character varying, 'custom'::character varying])::text[])))
 );
 
 
@@ -100,6 +104,45 @@ CREATE SEQUENCE public.attendance_events_id_seq
 --
 
 ALTER SEQUENCE public.attendance_events_id_seq OWNED BY public.attendance_events.id;
+
+
+--
+-- Name: attendance_location_checks; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.attendance_location_checks (
+    id bigint NOT NULL,
+    attendance_punch_id bigint,
+    event_attendance_id bigint,
+    work_location_id bigint,
+    location_name character varying(100),
+    radius_meters integer,
+    distance_meters integer,
+    flags jsonb DEFAULT '[]'::jsonb NOT NULL,
+    is_flagged boolean DEFAULT false NOT NULL,
+    created_at timestamp(0) without time zone,
+    updated_at timestamp(0) without time zone,
+    CONSTRAINT attendance_location_checks_target_check CHECK (((attendance_punch_id IS NOT NULL) <> (event_attendance_id IS NOT NULL)))
+);
+
+
+--
+-- Name: attendance_location_checks_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.attendance_location_checks_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: attendance_location_checks_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.attendance_location_checks_id_seq OWNED BY public.attendance_location_checks.id;
 
 
 --
@@ -288,7 +331,8 @@ CREATE TABLE public.departments (
     region_id bigint,
     is_active boolean DEFAULT true NOT NULL,
     created_at timestamp(0) without time zone,
-    updated_at timestamp(0) without time zone
+    updated_at timestamp(0) without time zone,
+    work_location_id bigint
 );
 
 
@@ -573,7 +617,9 @@ CREATE TABLE public.employees (
     photo_path character varying(255),
     is_active boolean DEFAULT true NOT NULL,
     created_at timestamp(0) without time zone,
-    updated_at timestamp(0) without time zone
+    updated_at timestamp(0) without time zone,
+    work_location_id bigint,
+    location_exempt boolean DEFAULT false NOT NULL
 );
 
 
@@ -1266,6 +1312,42 @@ ALTER SEQUENCE public.users_id_seq OWNED BY public.users.id;
 
 
 --
+-- Name: work_locations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.work_locations (
+    id bigint NOT NULL,
+    name character varying(100) NOT NULL,
+    latitude numeric(9,6) NOT NULL,
+    longitude numeric(9,6) NOT NULL,
+    radius_meters integer NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp(0) without time zone,
+    updated_at timestamp(0) without time zone,
+    CONSTRAINT work_locations_radius_meters_check CHECK (((radius_meters >= 10) AND (radius_meters <= 5000)))
+);
+
+
+--
+-- Name: work_locations_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.work_locations_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: work_locations_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.work_locations_id_seq OWNED BY public.work_locations.id;
+
+
+--
 -- Name: attendance_daily id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -1277,6 +1359,13 @@ ALTER TABLE ONLY public.attendance_daily ALTER COLUMN id SET DEFAULT nextval('pu
 --
 
 ALTER TABLE ONLY public.attendance_events ALTER COLUMN id SET DEFAULT nextval('public.attendance_events_id_seq'::regclass);
+
+
+--
+-- Name: attendance_location_checks id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.attendance_location_checks ALTER COLUMN id SET DEFAULT nextval('public.attendance_location_checks_id_seq'::regclass);
 
 
 --
@@ -1483,6 +1572,13 @@ ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_
 
 
 --
+-- Name: work_locations id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.work_locations ALTER COLUMN id SET DEFAULT nextval('public.work_locations_id_seq'::regclass);
+
+
+--
 -- Name: attendance_daily attendance_daily_employee_id_date_unique; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1504,6 +1600,30 @@ ALTER TABLE ONLY public.attendance_daily
 
 ALTER TABLE ONLY public.attendance_events
     ADD CONSTRAINT attendance_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: attendance_location_checks attendance_location_checks_attendance_punch_id_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.attendance_location_checks
+    ADD CONSTRAINT attendance_location_checks_attendance_punch_id_unique UNIQUE (attendance_punch_id);
+
+
+--
+-- Name: attendance_location_checks attendance_location_checks_event_attendance_id_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.attendance_location_checks
+    ADD CONSTRAINT attendance_location_checks_event_attendance_id_unique UNIQUE (event_attendance_id);
+
+
+--
+-- Name: attendance_location_checks attendance_location_checks_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.attendance_location_checks
+    ADD CONSTRAINT attendance_location_checks_pkey PRIMARY KEY (id);
 
 
 --
@@ -1987,6 +2107,22 @@ ALTER TABLE ONLY public.users
 
 
 --
+-- Name: work_locations work_locations_name_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.work_locations
+    ADD CONSTRAINT work_locations_name_unique UNIQUE (name);
+
+
+--
+-- Name: work_locations work_locations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.work_locations
+    ADD CONSTRAINT work_locations_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: attendance_daily_date_index; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2054,6 +2190,27 @@ CREATE INDEX attendance_events_event_date_index ON public.attendance_events USIN
 --
 
 CREATE INDEX attendance_events_is_active_index ON public.attendance_events USING btree (is_active);
+
+
+--
+-- Name: attendance_events_work_location_id_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX attendance_events_work_location_id_index ON public.attendance_events USING btree (work_location_id);
+
+
+--
+-- Name: attendance_location_checks_is_flagged_created_at_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX attendance_location_checks_is_flagged_created_at_index ON public.attendance_location_checks USING btree (is_flagged, created_at);
+
+
+--
+-- Name: attendance_location_checks_work_location_id_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX attendance_location_checks_work_location_id_index ON public.attendance_location_checks USING btree (work_location_id);
 
 
 --
@@ -2173,6 +2330,13 @@ CREATE INDEX departments_parent_id_index ON public.departments USING btree (pare
 --
 
 CREATE INDEX departments_region_id_index ON public.departments USING btree (region_id);
+
+
+--
+-- Name: departments_work_location_id_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX departments_work_location_id_index ON public.departments USING btree (work_location_id);
 
 
 --
@@ -2313,6 +2477,13 @@ CREATE INDEX employees_employment_type_id_index ON public.employees USING btree 
 --
 
 CREATE INDEX employees_name_index ON public.employees USING btree (name);
+
+
+--
+-- Name: employees_work_location_id_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX employees_work_location_id_index ON public.employees USING btree (work_location_id);
 
 
 --
@@ -2547,6 +2718,13 @@ CREATE INDEX users_region_id_index ON public.users USING btree (region_id);
 
 
 --
+-- Name: work_locations_is_active_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX work_locations_is_active_index ON public.work_locations USING btree (is_active);
+
+
+--
 -- Name: attendance_daily attendance_daily_department_id_foreign; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2584,6 +2762,38 @@ ALTER TABLE ONLY public.attendance_events
 
 ALTER TABLE ONLY public.attendance_events
     ADD CONSTRAINT attendance_events_department_id_foreign FOREIGN KEY (department_id) REFERENCES public.departments(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: attendance_events attendance_events_work_location_id_foreign; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.attendance_events
+    ADD CONSTRAINT attendance_events_work_location_id_foreign FOREIGN KEY (work_location_id) REFERENCES public.work_locations(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: attendance_location_checks attendance_location_checks_attendance_punch_id_foreign; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.attendance_location_checks
+    ADD CONSTRAINT attendance_location_checks_attendance_punch_id_foreign FOREIGN KEY (attendance_punch_id) REFERENCES public.attendance_punches(id) ON DELETE CASCADE;
+
+
+--
+-- Name: attendance_location_checks attendance_location_checks_event_attendance_id_foreign; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.attendance_location_checks
+    ADD CONSTRAINT attendance_location_checks_event_attendance_id_foreign FOREIGN KEY (event_attendance_id) REFERENCES public.event_attendances(id) ON DELETE CASCADE;
+
+
+--
+-- Name: attendance_location_checks attendance_location_checks_work_location_id_foreign; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.attendance_location_checks
+    ADD CONSTRAINT attendance_location_checks_work_location_id_foreign FOREIGN KEY (work_location_id) REFERENCES public.work_locations(id) ON DELETE SET NULL;
 
 
 --
@@ -2656,6 +2866,14 @@ ALTER TABLE ONLY public.departments
 
 ALTER TABLE ONLY public.departments
     ADD CONSTRAINT departments_region_id_foreign FOREIGN KEY (region_id) REFERENCES public.regions(id) ON DELETE SET NULL;
+
+
+--
+-- Name: departments departments_work_location_id_foreign; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.departments
+    ADD CONSTRAINT departments_work_location_id_foreign FOREIGN KEY (work_location_id) REFERENCES public.work_locations(id) ON DELETE RESTRICT;
 
 
 --
@@ -2752,6 +2970,14 @@ ALTER TABLE ONLY public.employees
 
 ALTER TABLE ONLY public.employees
     ADD CONSTRAINT employees_employment_type_id_foreign FOREIGN KEY (employment_type_id) REFERENCES public.employment_types(id) ON DELETE SET NULL;
+
+
+--
+-- Name: employees employees_work_location_id_foreign; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.employees
+    ADD CONSTRAINT employees_work_location_id_foreign FOREIGN KEY (work_location_id) REFERENCES public.work_locations(id) ON DELETE RESTRICT;
 
 
 --
@@ -2926,13 +3152,13 @@ ALTER TABLE ONLY public.users
 -- PostgreSQL database dump complete
 --
 
-\unrestrict AFlH4KVJmzbk36SLF0mB2ziWbFqc0xcZ8uSLkbDNaYzWFQnjtUuAae5fpQGNg6z
+\unrestrict 2BC2CXqJc6q7KbohQ4VOuTWgNg3zCSBwA0DuwiBPPOvGk9yxtAYyITWV8dmRJxp
 
 --
 -- PostgreSQL database dump
 --
 
-\restrict 6zcex87a50VY2jRANxVypgmtS5dAz5jvbOFZnXGNwwGFMffLTIxps9SpLdJaznY
+\restrict frVRCtg7lrBPMaA9otdre4ikiXw8ZE66j52o9Dk0EFM38wzp2taJuaQFWwbYjTm
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -2974,10 +3200,13 @@ COPY public.migrations (id, migration, batch) FROM stdin;
 18	2026_10_21_190000_create_audit_logs_table	1
 19	2026_10_21_200000_create_leave_requests_table	1
 20	2026_10_21_210000_create_content_tables	1
-21	2026_10_25_100000_create_devices_table	2
-22	2026_10_25_110000_create_biometric_templates_table	2
-23	2026_10_25_120000_create_device_commands_table	2
-25	2026_10_25_130000_create_device_logs_table	3
+21	2026_10_25_100000_create_devices_table	1
+22	2026_10_25_110000_create_biometric_templates_table	1
+23	2026_10_25_120000_create_device_commands_table	1
+24	2026_10_25_130000_create_device_logs_table	1
+25	2026_11_18_100000_create_work_locations_table	1
+26	2026_11_18_100100_add_location_mode_to_attendance_events_table	1
+27	2026_11_18_100200_create_attendance_location_checks_table	1
 \.
 
 
@@ -2985,12 +3214,12 @@ COPY public.migrations (id, migration, batch) FROM stdin;
 -- Name: migrations_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.migrations_id_seq', 25, true);
+SELECT pg_catalog.setval('public.migrations_id_seq', 27, true);
 
 
 --
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 6zcex87a50VY2jRANxVypgmtS5dAz5jvbOFZnXGNwwGFMffLTIxps9SpLdJaznY
+\unrestrict frVRCtg7lrBPMaA9otdre4ikiXw8ZE66j52o9Dk0EFM38wzp2taJuaQFWwbYjTm
 

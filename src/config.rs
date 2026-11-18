@@ -56,6 +56,12 @@ pub struct Config {
     pub requires_approval: bool,
     pub requires_photo: bool,
     pub min_interval_seconds: i64,
+    /// Akurasi GPS terburuk yang masih diterima bila lokasi berlaku.
+    pub location_max_accuracy_meters: i64,
+    /// Umur data GPS tertua yang masih diterima bila lokasi berlaku.
+    pub location_max_fix_age_seconds: i64,
+    /// Di atas kecepatan ini absen ditandai perpindahan tidak wajar.
+    pub location_max_speed_kmh: i64,
 
     /// Menit; 0 berarti token tidak kedaluwarsa berdasarkan umur (perilaku Sanctum).
     pub token_expiration_minutes: i64,
@@ -157,6 +163,9 @@ impl Config {
             requires_approval: laravel_bool(raw("ATTENDANCE_MOBILE_REQUIRES_APPROVAL"), true),
             requires_photo: laravel_bool(raw("ATTENDANCE_MOBILE_REQUIRES_PHOTO"), true),
             min_interval_seconds: laravel_int(raw("ATTENDANCE_MOBILE_MIN_INTERVAL"), 60),
+            location_max_accuracy_meters: laravel_int(raw("ATTENDANCE_LOCATION_MAX_ACCURACY"), 100),
+            location_max_fix_age_seconds: laravel_int(raw("ATTENDANCE_LOCATION_MAX_FIX_AGE"), 120),
+            location_max_speed_kmh: laravel_int(raw("ATTENDANCE_LOCATION_MAX_SPEED_KMH"), 250),
 
             token_expiration_minutes: laravel_int(raw("SANCTUM_TOKEN_EXPIRATION"), 43200),
             // Prefix tidak di-trim: Laravel memakai nilainya apa adanya.
@@ -330,6 +339,9 @@ mod tests {
         assert!(config.requires_approval);
         assert!(config.requires_photo);
         assert_eq!(config.min_interval_seconds, 60);
+        assert_eq!(config.location_max_accuracy_meters, 100);
+        assert_eq!(config.location_max_fix_age_seconds, 120);
+        assert_eq!(config.location_max_speed_kmh, 250);
         assert_eq!(config.token_expiration_minutes, 43200);
         assert_eq!(config.token_prefix, "");
         assert_eq!(

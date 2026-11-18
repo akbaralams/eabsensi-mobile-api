@@ -10,7 +10,8 @@ Dipindahkan dari `eabsensi-v2` (`tests/contract/mobile`, commit di `SCHEMA_VERSI
 | `02-punches.hurl` | validasi foto dan koordinat, punch 201 (waktu server `+07:00`, `pending`), interval minimum, riwayat per tanggal, pegawai nonaktif |
 | `03-events.hurl` | daftar event hari ini (event department lain tidak terlihat), check-in, check-in ganda, 404 |
 | `04-leaves.hurl` | jenis cuti, validasi tanggal, batas 62 hari, pengajuan 201, tumpang tindih |
-| `fixtures.sql` | data uji idempoten, padanan `ContractTestSeeder` (department `KONTRAK`, pegawai `KTR-001`/`KTR-002`, empat akun `kontrak*`, dua event hari ini) |
+| `05-location.hurl` | lokasi di `/me`, sinyal integritas, penolakan lokasi (tanpa koordinat, aplikasi lama, palsu, kedaluwarsa, akurasi), tanda di luar radius |
+| `fixtures.sql` | data uji idempoten, padanan `ContractTestSeeder` (department `KONTRAK`, pegawai `KTR-001` sampai `KTR-003`, lima akun `kontrak*`, satu lokasi kerja, dua event hari ini) |
 
 ## Menjalankan
 

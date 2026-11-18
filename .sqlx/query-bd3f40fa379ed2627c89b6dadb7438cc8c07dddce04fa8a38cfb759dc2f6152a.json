@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, punched_at, source, status, photo_path IS NOT NULL AS \"has_photo!\"\n           FROM attendance_punches\n           WHERE employee_id = $1 AND punched_at >= $2 AND punched_at < $3\n           ORDER BY punched_at, id",
+  "query": "SELECT p.id, p.punched_at, p.source, p.status, p.photo_path IS NOT NULL AS \"has_photo!\",\n                  COALESCE(c.flags, '[]'::jsonb)::text AS \"flags!\"\n           FROM attendance_punches p\n           LEFT JOIN attendance_location_checks c ON c.attendance_punch_id = p.id\n           WHERE p.employee_id = $1 AND p.punched_at >= $2 AND p.punched_at < $3\n           ORDER BY p.punched_at, p.id",
   "describe": {
     "columns": [
       {
@@ -52,6 +52,12 @@
         "name": "has_photo!",
         "type_info": "Bool",
         "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "flags!",
+        "type_info": "Text",
+        "origin": "Expression"
       }
     ],
     "parameters": {
@@ -66,8 +72,9 @@
       false,
       false,
       false,
+      null,
       null
     ]
   },
-  "hash": "f402f9952991194ef410bb5f29b1d825c8ba3e65d5b950c869b2d18b6ff73a73"
+  "hash": "bd3f40fa379ed2627c89b6dadb7438cc8c07dddce04fa8a38cfb759dc2f6152a"
 }

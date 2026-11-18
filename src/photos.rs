@@ -18,6 +18,8 @@ pub const MAX_PHOTO_KB: u64 = 4096;
 /// Kolom `accuracy_meters` bertipe smallint; nilai di atasnya (masih lolos validasi kontrak 0..65535)
 /// disimpan sebagai batas ini. Laravel gagal 500 untuk nilai itu.
 const MAX_STORED_ACCURACY: i64 = i16::MAX as i64;
+/// `max:86400` pada `location_age_seconds`.
+const MAX_LOCATION_AGE_SECONDS: i64 = 86_400;
 
 #[derive(Debug, Clone)]
 pub struct Photo {
@@ -32,6 +34,10 @@ pub struct Evidence {
     pub latitude: Option<f64>,
     pub longitude: Option<f64>,
     pub accuracy: Option<i16>,
+    /// Sinyal integritas; `None` berarti aplikasi versi lama tidak mengirimnya.
+    pub is_mocked: Option<bool>,
+    pub location_age_seconds: Option<i64>,
+    pub device_rooted: Option<bool>,
 }
 
 /// Jenis gambar dari magic bytes, bukan dari nama berkas atau content-type kiriman klien.
@@ -135,19 +141,62 @@ fn validate_accuracy(value: Option<&Value>, errors: &mut ValidationErrors) -> Op
     Some(n.min(MAX_STORED_ACCURACY) as i16)
 }
 
-/// Aturan `MobilePunchRequest`, galat per field dengan urutan photo, latitude, longitude, accuracy.
+/// Aturan `nullable|integer|in:0,1`.
+fn validate_flag(input: &Input, field: &str, errors: &mut ValidationErrors) -> Option<bool> {
+    let value = input.get(field)?;
+    let Some(n) = php_integer(value) else {
+        errors.add(field, msg::integer(field));
+        return None;
+    };
+    match n {
+        0 => Some(false),
+        1 => Some(true),
+        _ => {
+            errors.add(field, msg::exists(field));
+            None
+        }
+    }
+}
+
+/// Aturan `nullable|integer|min:0|max:86400`.
+fn validate_location_age(input: &Input, errors: &mut ValidationErrors) -> Option<i64> {
+    let field = "location_age_seconds";
+    let value = input.get(field)?;
+    let Some(n) = php_integer(value) else {
+        errors.add(field, msg::integer(field));
+        return None;
+    };
+    if n < 0 {
+        errors.add(field, msg::min_numeric(field, 0));
+        return None;
+    }
+    if n > MAX_LOCATION_AGE_SECONDS {
+        errors.add(field, msg::max_numeric(field, MAX_LOCATION_AGE_SECONDS));
+        return None;
+    }
+    Some(n)
+}
+
+/// Aturan `MobilePunchRequest`, galat per field dengan urutan photo, latitude, longitude, accuracy,
+/// is_mocked, location_age_seconds, device_rooted.
 pub fn validate_evidence(input: &Input, requires_photo: bool) -> AppResult<Evidence> {
     let mut errors = ValidationErrors::default();
     let photo = validate_photo(input, requires_photo, &mut errors);
     let latitude = validate_coordinate(input, "latitude", "longitude", 90, &mut errors);
     let longitude = validate_coordinate(input, "longitude", "latitude", 180, &mut errors);
     let accuracy = validate_accuracy(input.get("accuracy"), &mut errors);
+    let is_mocked = validate_flag(input, "is_mocked", &mut errors);
+    let location_age_seconds = validate_location_age(input, &mut errors);
+    let device_rooted = validate_flag(input, "device_rooted", &mut errors);
     errors.into_result()?;
     Ok(Evidence {
         photo,
         latitude,
         longitude,
         accuracy,
+        is_mocked,
+        location_age_seconds,
+        device_rooted,
     })
 }
 
@@ -283,6 +332,33 @@ mod tests {
         let evidence = validate_evidence(&input, false).unwrap();
         assert_eq!(evidence.latitude, Some(-6.2));
         assert_eq!(evidence.accuracy, Some(i16::MAX));
+    }
+
+    #[test]
+    fn integrity_signals_are_optional_and_validated() {
+        let evidence = validate_evidence(&Input::from_json(json!({})), false).unwrap();
+        assert_eq!(evidence.is_mocked, None);
+        assert_eq!(evidence.location_age_seconds, None);
+        assert_eq!(evidence.device_rooted, None);
+
+        let input = Input::from_json(
+            json!({"is_mocked": "1", "location_age_seconds": "12", "device_rooted": "0"}),
+        );
+        let evidence = validate_evidence(&input, false).unwrap();
+        assert_eq!(evidence.is_mocked, Some(true));
+        assert_eq!(evidence.location_age_seconds, Some(12));
+        assert_eq!(evidence.device_rooted, Some(false));
+
+        let input = Input::from_json(
+            json!({"is_mocked": "2", "location_age_seconds": "-1", "device_rooted": "ya"}),
+        );
+        let errors = errors_of(validate_evidence(&input, false));
+        assert!(errors.has("is_mocked"));
+        assert!(errors.has("location_age_seconds"));
+        assert!(errors.has("device_rooted"));
+
+        let input = Input::from_json(json!({"location_age_seconds": "86401"}));
+        assert!(errors_of(validate_evidence(&input, false)).has("location_age_seconds"));
     }
 
     #[test]

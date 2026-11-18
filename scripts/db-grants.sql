@@ -18,14 +18,14 @@ SELECT format('GRANT CONNECT ON DATABASE %I TO %I', current_database(), :'role')
 GRANT USAGE ON SCHEMA public TO :"role";
 
 -- Baca: data referensi dan akun.
-GRANT SELECT ON users, employees, departments, attendance_events, attendance_statuses, periods TO :"role";
+GRANT SELECT ON users, employees, departments, attendance_events, attendance_statuses, periods, work_locations TO :"role";
 
--- Tulis: punch, check-in event, cuti, audit (tanpa UPDATE/DELETE).
-GRANT SELECT, INSERT ON attendance_punches, event_attendances, leave_requests TO :"role";
+-- Tulis: punch, check-in event, hasil cek lokasi, cuti, audit (tanpa UPDATE/DELETE).
+GRANT SELECT, INSERT ON attendance_punches, event_attendances, attendance_location_checks, leave_requests TO :"role";
 GRANT INSERT ON audit_logs TO :"role";
 
 -- Token: buat saat login, perbarui last_used_at, hapus saat logout/login ulang perangkat yang sama.
 GRANT SELECT, INSERT, UPDATE, DELETE ON personal_access_tokens TO :"role";
 
-GRANT USAGE ON SEQUENCE attendance_punches_id_seq, event_attendances_id_seq, leave_requests_id_seq,
+GRANT USAGE ON SEQUENCE attendance_punches_id_seq, event_attendances_id_seq, attendance_location_checks_id_seq, leave_requests_id_seq,
     audit_logs_id_seq, personal_access_tokens_id_seq TO :"role";

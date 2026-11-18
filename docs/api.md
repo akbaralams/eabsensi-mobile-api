@@ -12,7 +12,7 @@ Token (ability `mobile`) berlaku 30 hari (`SANCTUM_TOKEN_EXPIRATION`, menit). Sa
 | `password` | ya | |
 | `device_name` | ya | nama perangkat, maks 100 karakter |
 
-Berhasil (200): `{ "token": "...", "user": { id, name, username, employee: { id, employee_number, name, department }, timezone, requires_photo, requires_approval } }`.
+Berhasil (200): `{ "token": "...", "user": { id, name, username, employee: { id, employee_number, name, department }, timezone, requires_photo, requires_approval, work_location: { name, latitude, longitude, radius_meters } | null } }`.
 Gagal: 422 (username/sandi salah atau akun nonaktif, pesan sama), 403 (akun belum terhubung ke pegawai), 429 (terlalu banyak percobaan: 60/menit per IP, 5/menit per akun+IP).
 
 ## Profil dan keluar
@@ -27,18 +27,46 @@ Gagal: 422 (username/sandi salah atau akun nonaktif, pesan sama), 403 (akun belu
 | `photo` | bila `requires_photo` | jpg/png, maks 4 MB |
 | `latitude`, `longitude` | tidak | harus berpasangan |
 | `accuracy` | tidak | meter, bilangan bulat |
+| `is_mocked` | bila lokasi berlaku | `1` bila sistem operasi melaporkan lokasi palsu, selain itu `0` |
+| `location_age_seconds` | bila lokasi berlaku | umur data GPS saat dikirim, detik |
+| `device_rooted` | bila lokasi berlaku | `1` bila perangkat terdeteksi root, selain itu `0` |
 
-Waktu punch selalu dari server (field waktu dari klien diabaikan). Berhasil: 201 `{ "data": { id, punched_at (ISO 8601, zona waktu bisnis), source, status, status_label, has_photo } }`.
+Waktu punch selalu dari server (field waktu dari klien diabaikan). Berhasil: 201 `{ "data": { id, punched_at (ISO 8601, zona waktu bisnis), source, status, status_label, has_photo, location_flags } }`.
 `status` bernilai `pending` bila `requires_approval` aktif (menunggu persetujuan atasan, belum dihitung sebagai kehadiran) atau `approved`.
 
 Ditolak 422 dengan `message`: akun tanpa pegawai, pegawai nonaktif, punch lagi sebelum `ATTENDANCE_MOBILE_MIN_INTERVAL` detik (default 60), atau periode bulan berjalan sudah ditutup. Validasi lain memakai format Laravel (`errors`).
 
 `GET /api/punches?date=YYYY-MM-DD`: punch milik sendiri pada satu hari (default hari ini), semua status.
 
+## Lokasi kerja
+Lokasi yang berlaku ditentukan server dengan urutan: pegawai Bebas Lokasi (tanpa radius), lokasi pegawai, lokasi department, lalu induk department terdekat. Lokasi nonaktif dilewati. Tanpa lokasi yang berlaku, absen tidak dibatasi.
+
+Bila lokasi berlaku, absen ditolak 422 dengan `message` (urutan pemeriksaan):
+
+| Kondisi | Pesan |
+|---|---|
+| Koordinat tidak dikirim | `Lokasi wajib diaktifkan untuk melakukan absen.` |
+| Sinyal integritas tidak dikirim (aplikasi lama) | `Perbarui aplikasi ke versi terbaru untuk melakukan absen.` |
+| `is_mocked = 1` | `Lokasi palsu terdeteksi. Matikan aplikasi pengubah lokasi lalu coba lagi.` |
+| `location_age_seconds` di atas `ATTENDANCE_LOCATION_MAX_FIX_AGE` | `Lokasi sudah kedaluwarsa. Silakan coba lagi.` |
+| `accuracy` kosong atau di atas `ATTENDANCE_LOCATION_MAX_ACCURACY` | `Sinyal GPS lemah. Pindah ke area terbuka lalu coba lagi.` |
+
+Absen yang lolos tetap tercatat dengan status normal. `location_flags` berisi tanda untuk ditinjau:
+
+| Tanda | Arti |
+|---|---|
+| `outside_radius` | jarak melebihi radius lokasi |
+| `impossible_travel` | kecepatan dari punch mobile sebelumnya melebihi `ATTENDANCE_LOCATION_MAX_SPEED_KMH` |
+| `rooted_device` | perangkat terdeteksi root |
+| `mock_location` | lokasi palsu pada pegawai tanpa lokasi yang berlaku (tidak ditolak) |
+
+Sinyal lokasi berasal dari perangkat, jadi aplikasi yang dimodifikasi tetap bisa memalsukannya. Tanda dan foto membantu peninjauan.
+
 ## Event (mis. upacara)
-- `GET /api/events`: event aktif **hari ini** yang boleh diikuti pegawai (untuk semua pegawai, atau department induknya), beserta `checked_in`.
-- `POST /api/events/{id}/check-in` (multipart, field sama dengan punch: `photo`, `latitude`, `longitude`, `accuracy`): 201 `{ "data": { event_id, checked_in_at } }`.
-  Ditolak 422 dengan `message` bila: bukan peserta, event nonaktif, bukan tanggal event, di luar jam mulai–selesai (zona waktu bisnis), atau sudah check-in. Satu pegawai satu check-in per event.
+- `GET /api/events`: event aktif **hari ini** yang boleh diikuti pegawai (untuk semua pegawai, atau department induknya), beserta `checked_in` dan `work_location` (lokasi yang berlaku untuk check-in, `null` bila tidak dibatasi).
+- `POST /api/events/{id}/check-in` (multipart, field sama dengan punch): 201 `{ "data": { event_id, checked_in_at, location_flags } }`.
+  Ditolak 422 dengan `message` bila: bukan peserta, event nonaktif, bukan tanggal event, di luar jam mulai–selesai (zona waktu bisnis), sudah check-in, atau aturan lokasi di atas. Satu pegawai satu check-in per event.
+- Aturan lokasi diatur per event: tanpa radius, ikut lokasi kerja pegawai, atau lokasi khusus event.
 
 ## Cuti
 - `GET /api/leaves`: pengajuan milik sendiri (terbaru dulu) dan `types` (jenis yang bisa dipilih: status kehadiran aktif).
@@ -46,7 +74,7 @@ Ditolak 422 dengan `message`: akun tanpa pegawai, pegawai nonaktif, punch lagi s
   Ditolak 422 bila rentang lebih dari 62 hari atau tumpang tindih dengan pengajuan aktif (menunggu atau disetujui). Persetujuan dilakukan atasan di web; saat disetujui, status cuti terisi di roster.
 
 ## Konfigurasi (`config/attendance.php`)
-`ATTENDANCE_TIMEZONE` (default Asia/Jakarta), `ATTENDANCE_MOBILE_REQUIRES_APPROVAL` (true), `ATTENDANCE_MOBILE_REQUIRES_PHOTO` (true), `ATTENDANCE_MOBILE_MIN_INTERVAL` (60).
+`ATTENDANCE_TIMEZONE` (default Asia/Jakarta), `ATTENDANCE_MOBILE_REQUIRES_APPROVAL` (true), `ATTENDANCE_MOBILE_REQUIRES_PHOTO` (true), `ATTENDANCE_MOBILE_MIN_INTERVAL` (60), `ATTENDANCE_LOCATION_MAX_ACCURACY` (100), `ATTENDANCE_LOCATION_MAX_FIX_AGE` (120), `ATTENDANCE_LOCATION_MAX_SPEED_KMH` (250).
 
 ## Catatan operasional
 Foto disimpan di disk `local` pada `mobile-punches/Y/m/d/<kode department>/` dan hanya bisa dilihat lewat halaman persetujuan oleh user yang berwenang atas pegawainya.

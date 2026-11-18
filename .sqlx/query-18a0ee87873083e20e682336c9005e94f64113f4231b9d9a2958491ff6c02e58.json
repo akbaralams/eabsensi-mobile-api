@@ -1,0 +1,42 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT punched_at, latitude::float8 AS \"latitude!\", longitude::float8 AS \"longitude!\"\n           FROM attendance_punches\n           WHERE employee_id = $1 AND source = 'mobile' AND latitude IS NOT NULL AND longitude IS NOT NULL\n           ORDER BY punched_at DESC, id DESC\n           LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "punched_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "attendance_punches",
+            "name": "punched_at"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "latitude!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "longitude!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "18a0ee87873083e20e682336c9005e94f64113f4231b9d9a2958491ff6c02e58"
+}

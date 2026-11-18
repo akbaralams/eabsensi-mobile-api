@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT location_exempt AS \"exempt!\" FROM employees WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "exempt!",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "employees",
+            "name": "location_exempt"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "5d537e48e2cdd2851c9111af8ade21817d980df21944562ea36669b02fa943a1"
+}
