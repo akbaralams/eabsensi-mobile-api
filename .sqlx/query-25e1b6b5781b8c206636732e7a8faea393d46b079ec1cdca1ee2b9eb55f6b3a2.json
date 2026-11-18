@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, event_date, starts_at, ends_at, department_id, is_active FROM attendance_events WHERE id = $1",
+  "query": "SELECT id, event_date, starts_at, ends_at, department_id, is_active, location_mode, work_location_id FROM attendance_events WHERE id = $1",
   "describe": {
     "columns": [
       {
@@ -68,6 +68,28 @@
             "name": "is_active"
           }
         }
+      },
+      {
+        "ordinal": 6,
+        "name": "location_mode",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "attendance_events",
+            "name": "location_mode"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "work_location_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "attendance_events",
+            "name": "work_location_id"
+          }
+        }
       }
     ],
     "parameters": {
@@ -81,8 +103,10 @@
       false,
       false,
       true,
-      false
+      false,
+      false,
+      true
     ]
   },
-  "hash": "2235a3f07573c1d931987f88738dc3f87da4146b643ad513a70a40a76c8d229e"
+  "hash": "25e1b6b5781b8c206636732e7a8faea393d46b079ec1cdca1ee2b9eb55f6b3a2"
 }

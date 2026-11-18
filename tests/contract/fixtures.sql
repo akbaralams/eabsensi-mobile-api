@@ -51,7 +51,22 @@ JOIN departments d ON d.code = 'KONTRAK'
 ON CONFLICT (employee_number) DO UPDATE
     SET name = EXCLUDED.name, department_id = EXCLUDED.department_id, is_active = EXCLUDED.is_active, updated_at = EXCLUDED.updated_at;
 
--- Empat akun kontrak* (updateOrCreate by username).
+-- Pegawai dengan lokasi kerja aktif untuk kontrak geofence (05-location.hurl).
+INSERT INTO work_locations (name, latitude, longitude, radius_meters, is_active, created_at, updated_at)
+VALUES ('Lokasi Kontrak', -6.2, 106.8, 100, true, now() AT TIME ZONE 'UTC', now() AT TIME ZONE 'UTC')
+ON CONFLICT (name) DO UPDATE
+    SET latitude = EXCLUDED.latitude, longitude = EXCLUDED.longitude, radius_meters = EXCLUDED.radius_meters,
+        is_active = EXCLUDED.is_active, updated_at = EXCLUDED.updated_at;
+
+INSERT INTO employees (employee_number, name, department_id, is_active, work_location_id, created_at, updated_at)
+SELECT 'KTR-003', 'Pegawai Kontrak Berlokasi', d.id, true, wl.id, now() AT TIME ZONE 'UTC', now() AT TIME ZONE 'UTC'
+FROM departments d CROSS JOIN work_locations wl
+WHERE d.code = 'KONTRAK' AND wl.name = 'Lokasi Kontrak'
+ON CONFLICT (employee_number) DO UPDATE
+    SET name = EXCLUDED.name, department_id = EXCLUDED.department_id, is_active = EXCLUDED.is_active,
+        work_location_id = EXCLUDED.work_location_id, updated_at = EXCLUDED.updated_at;
+
+-- Lima akun kontrak* (updateOrCreate by username).
 INSERT INTO users (username, name, email, password, employee_id, is_active, created_at, updated_at)
 SELECT v.username, 'Akun ' || v.username, v.username || '@kontrak.test',
        '$2y$12$gh2nUuLCjjiBZHMlpGaWv.g8DrcA0zyebGRYvulZV7Nd9QZmcRRfq',
@@ -60,7 +75,8 @@ SELECT v.username, 'Akun ' || v.username, v.username || '@kontrak.test',
 FROM (VALUES ('kontrak', 'KTR-001', true),
              ('kontrak.tanpa-pegawai', NULL, true),
              ('kontrak.akun-nonaktif', 'KTR-001', false),
-             ('kontrak.pegawai-nonaktif', 'KTR-002', true)) AS v(username, employee_number, active)
+             ('kontrak.pegawai-nonaktif', 'KTR-002', true),
+             ('kontrak.lokasi', 'KTR-003', true)) AS v(username, employee_number, active)
 ON CONFLICT (username) DO UPDATE
     SET name = EXCLUDED.name, email = EXCLUDED.email, password = EXCLUDED.password,
         employee_id = EXCLUDED.employee_id, is_active = EXCLUDED.is_active, updated_at = EXCLUDED.updated_at;
@@ -68,11 +84,11 @@ ON CONFLICT (username) DO UPDATE
 -- Hapus jejak uji lama: token akun kontrak*, punch, check-in, dan cuti pegawai KTR-*.
 DELETE FROM personal_access_tokens
 WHERE tokenable_type = 'App\Models\User'
-  AND tokenable_id IN (SELECT id FROM users WHERE username IN ('kontrak', 'kontrak.tanpa-pegawai', 'kontrak.akun-nonaktif', 'kontrak.pegawai-nonaktif'));
+  AND tokenable_id IN (SELECT id FROM users WHERE username IN ('kontrak', 'kontrak.tanpa-pegawai', 'kontrak.akun-nonaktif', 'kontrak.pegawai-nonaktif', 'kontrak.lokasi'));
 
-DELETE FROM attendance_punches WHERE employee_id IN (SELECT id FROM employees WHERE employee_number IN ('KTR-001', 'KTR-002'));
-DELETE FROM event_attendances WHERE employee_id IN (SELECT id FROM employees WHERE employee_number IN ('KTR-001', 'KTR-002'));
-DELETE FROM leave_requests WHERE employee_id IN (SELECT id FROM employees WHERE employee_number IN ('KTR-001', 'KTR-002'));
+DELETE FROM attendance_punches WHERE employee_id IN (SELECT id FROM employees WHERE employee_number IN ('KTR-001', 'KTR-002', 'KTR-003'));
+DELETE FROM event_attendances WHERE employee_id IN (SELECT id FROM employees WHERE employee_number IN ('KTR-001', 'KTR-002', 'KTR-003'));
+DELETE FROM leave_requests WHERE employee_id IN (SELECT id FROM employees WHERE employee_number IN ('KTR-001', 'KTR-002', 'KTR-003'));
 
 -- Dua event hari ini (tanggal zona bisnis): satu untuk semua pegawai, satu untuk department lain (tidak terlihat).
 -- updateOrCreate by name: perbarui bila ada, buat bila belum.

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO event_attendances\n               (event_id, employee_id, checked_in_at, photo_path, latitude, longitude, accuracy_meters, created_at, updated_at)\n           VALUES ($1, $2, $3, $4, $5::float8, $6::float8, $7, $8, $8)\n           ON CONFLICT (event_id, employee_id) DO NOTHING\n           RETURNING id",
+  "query": "INSERT INTO event_attendances\n                   (event_id, employee_id, checked_in_at, photo_path, latitude, longitude, accuracy_meters, created_at, updated_at)\n               VALUES ($1, $2, $3, $4, $5::float8, $6::float8, $7, $8, $8)\n               ON CONFLICT (event_id, employee_id) DO NOTHING\n               RETURNING id",
   "describe": {
     "columns": [
       {
@@ -31,5 +31,5 @@
       false
     ]
   },
-  "hash": "409e5f1007a89e8b9ed4d3e50a00209dcd8fa998ac0461cff04740daea5800a3"
+  "hash": "d54928d37d898ef2f6f10b8978ef197c167d8ed76b657fa54e6b63301506360c"
 }

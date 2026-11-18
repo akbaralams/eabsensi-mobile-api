@@ -61,6 +61,7 @@ jsonpath "$.data.source" == "mobile"
 jsonpath "$.data.status" == "pending"
 jsonpath "$.data.status_label" isString
 jsonpath "$.data.has_photo" == true
+jsonpath "$.data.location_flags" count == 0
 
 # Punch lagi sebelum interval minimum: ditolak dengan pesan aturan.
 POST {{base_url}}/api/punches

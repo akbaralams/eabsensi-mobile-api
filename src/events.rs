@@ -12,6 +12,7 @@ use crate::app::route_not_found_error;
 use crate::auth::{ActionLimited, AuthUser, NO_EMPLOYEE};
 use crate::employees;
 use crate::error::{AppError, AppResult};
+use crate::geofence::{self, CheckTarget, EventLocations, WorkLocation};
 use crate::input::Input;
 use crate::openapi::{Data, EvidenceForm, Message, Unprocessable};
 use crate::photos::{self, Evidence};
@@ -26,12 +27,17 @@ pub struct EventResource {
     pub starts_at: String,
     pub ends_at: String,
     pub checked_in: bool,
+    /// Lokasi yang berlaku untuk check-in; `null` bila tidak dibatasi radius.
+    pub work_location: Option<WorkLocation>,
 }
 
 #[derive(Debug, Serialize, PartialEq, ToSchema)]
 pub struct EventCheckIn {
     pub event_id: i64,
     pub checked_in_at: String,
+    /// Tanda lokasi untuk ditinjau.
+    #[schema(required = false)]
+    pub location_flags: Vec<String>,
 }
 
 fn hhmm(time: NaiveTime) -> String {
@@ -45,6 +51,8 @@ struct EventListRow {
     starts_at: NaiveTime,
     ends_at: NaiveTime,
     checked_in: bool,
+    location_mode: String,
+    work_location_id: Option<i64>,
 }
 
 /// `GET /api/events`: event aktif hari ini (zona bisnis) untuk semua pegawai, atau untuk department
@@ -76,7 +84,8 @@ pub async fn index(
            SELECT e.id, e.name, e.event_date, e.starts_at, e.ends_at,
                   EXISTS (
                       SELECT 1 FROM event_attendances ea WHERE ea.event_id = e.id AND ea.employee_id = $1
-                  ) AS "checked_in!"
+                  ) AS "checked_in!",
+                  e.location_mode, e.work_location_id
            FROM attendance_events e
            WHERE e.is_active
              AND e.event_date = $2
@@ -88,9 +97,15 @@ pub async fn index(
     .fetch_all(&state.db)
     .await?;
 
+    let custom_ids: Vec<i64> = rows.iter().filter_map(|r| r.work_location_id).collect();
+    let locations = EventLocations::load(&state.db, employee_id, &custom_ids).await?;
+
     let data = rows
         .into_iter()
         .map(|r| EventResource {
+            work_location: locations
+                .resolve(&r.location_mode, r.work_location_id)
+                .map(WorkLocation::from),
             id: r.id,
             name: r.name,
             event_date: r.event_date.format("%Y-%m-%d").to_string(),
@@ -137,6 +152,8 @@ struct EventRow {
     ends_at: NaiveTime,
     department_id: Option<i64>,
     is_active: bool,
+    location_mode: String,
+    work_location_id: Option<i64>,
 }
 
 /// `POST /api/events/{event}/check-in`: validasi form, cari event (404), lalu aturan `CheckInToEvent`.
@@ -168,20 +185,21 @@ pub async fn check_in(
     let id: i64 = segment.parse().map_err(|_| not_found())?;
     let event = sqlx::query_as!(
         EventRow,
-        "SELECT id, event_date, starts_at, ends_at, department_id, is_active FROM attendance_events WHERE id = $1",
+        "SELECT id, event_date, starts_at, ends_at, department_id, is_active, location_mode, work_location_id FROM attendance_events WHERE id = $1",
         id
     )
     .fetch_optional(&state.db)
     .await?
     .ok_or_else(not_found)?;
 
-    let checked_in_at = record_check_in(&state, &user, &event, evidence).await?;
+    let (checked_in_at, location_flags) = record_check_in(&state, &user, &event, evidence).await?;
     Ok((
         StatusCode::CREATED,
         Json(Data {
             data: EventCheckIn {
                 event_id: event.id,
                 checked_in_at,
+                location_flags,
             },
         }),
     ))
@@ -194,7 +212,7 @@ async fn record_check_in(
     user: &AuthUser,
     event: &EventRow,
     evidence: Evidence,
-) -> AppResult<String> {
+) -> AppResult<(String, Vec<String>)> {
     let config = &state.config;
     let employee_id = user
         .employee_id
@@ -263,6 +281,16 @@ async fn record_check_in(
         return Err(AppError::rule(ALREADY));
     }
 
+    let location = geofence::for_event(
+        &state.db,
+        employee.id,
+        &event.location_mode,
+        event.work_location_id,
+    )
+    .await?;
+    let check =
+        geofence::evaluate(&state.db, config, location, &evidence, employee.id, now).await?;
+
     let department_code = employee
         .department_code
         .as_deref()
@@ -281,26 +309,35 @@ async fn record_check_in(
     let created = naive_utc(now);
     // Unique (event_id, employee_id) menjaga satu check-in per pegawai, juga saat ribuan pegawai
     // check-in bersamaan: request kedua yang lolos cek di atas tetap tidak membuat baris ganda.
-    let inserted = sqlx::query_scalar!(
-        r#"INSERT INTO event_attendances
-               (event_id, employee_id, checked_in_at, photo_path, latitude, longitude, accuracy_meters, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5::float8, $6::float8, $7, $8, $8)
-           ON CONFLICT (event_id, employee_id) DO NOTHING
-           RETURNING id"#,
-        event.id,
-        employee.id,
-        now,
-        photo_path.as_deref(),
-        evidence.latitude,
-        evidence.longitude,
-        evidence.accuracy,
-        created
-    )
-    .fetch_optional(&state.db)
+    let inserted = async {
+        let mut tx = state.db.begin().await?;
+        let id = sqlx::query_scalar!(
+            r#"INSERT INTO event_attendances
+                   (event_id, employee_id, checked_in_at, photo_path, latitude, longitude, accuracy_meters, created_at, updated_at)
+               VALUES ($1, $2, $3, $4, $5::float8, $6::float8, $7, $8, $8)
+               ON CONFLICT (event_id, employee_id) DO NOTHING
+               RETURNING id"#,
+            event.id,
+            employee.id,
+            now,
+            photo_path.as_deref(),
+            evidence.latitude,
+            evidence.longitude,
+            evidence.accuracy,
+            created
+        )
+        .fetch_optional(&mut *tx)
+        .await?;
+        if let Some(id) = id {
+            geofence::record(&mut *tx, CheckTarget::EventAttendance(id), &check, created).await?;
+        }
+        tx.commit().await?;
+        Ok::<Option<i64>, AppError>(id)
+    }
     .await;
 
     match inserted {
-        Ok(Some(_)) => Ok(iso8601(now, config.timezone)),
+        Ok(Some(_)) => Ok((iso8601(now, config.timezone), check.flags)),
         Ok(None) => {
             if let Some(path) = &photo_path {
                 photos::remove(config, path).await;
@@ -311,7 +348,7 @@ async fn record_check_in(
             if let Some(path) = &photo_path {
                 photos::remove(config, path).await;
             }
-            Err(error.into())
+            Err(error)
         }
     }
 }

@@ -11,6 +11,7 @@ use utoipa::ToSchema;
 use crate::auth::{ActionLimited, AuthUser, NO_EMPLOYEE};
 use crate::employees;
 use crate::error::{AppError, AppResult};
+use crate::geofence::{self, CheckTarget};
 use crate::input::Input;
 use crate::openapi::{Data, EvidenceForm, Message, Unprocessable};
 use crate::periods;
@@ -31,6 +32,9 @@ pub struct PunchResource {
     pub status: String,
     pub status_label: String,
     pub has_photo: bool,
+    /// Tanda lokasi untuk ditinjau.
+    #[schema(required = false)]
+    pub location_flags: Vec<String>,
 }
 
 /// `PunchStatus::label()`.
@@ -50,6 +54,8 @@ struct PunchRow {
     source: String,
     status: String,
     has_photo: bool,
+    /// Teks JSON kolom `attendance_location_checks.flags`.
+    flags: String,
 }
 
 impl PunchRow {
@@ -61,6 +67,7 @@ impl PunchRow {
             status_label: status_label(&self.status),
             status: self.status,
             has_photo: self.has_photo,
+            location_flags: geofence::parse_flags(&self.flags),
         }
     }
 }
@@ -102,10 +109,12 @@ pub async fn index(
 
     let rows = sqlx::query_as!(
         PunchRow,
-        r#"SELECT id, punched_at, source, status, photo_path IS NOT NULL AS "has_photo!"
-           FROM attendance_punches
-           WHERE employee_id = $1 AND punched_at >= $2 AND punched_at < $3
-           ORDER BY punched_at, id"#,
+        r#"SELECT p.id, p.punched_at, p.source, p.status, p.photo_path IS NOT NULL AS "has_photo!",
+                  COALESCE(c.flags, '[]'::jsonb)::text AS "flags!"
+           FROM attendance_punches p
+           LEFT JOIN attendance_location_checks c ON c.attendance_punch_id = p.id
+           WHERE p.employee_id = $1 AND p.punched_at >= $2 AND p.punched_at < $3
+           ORDER BY p.punched_at, p.id"#,
         employee_id,
         from,
         to
@@ -159,6 +168,9 @@ pub async fn record_mobile_punch(
         return Err(AppError::rule("Pegawai tidak aktif."));
     }
 
+    // Dibaca sebelum transaksi agar request tidak memegang dua koneksi sekaligus.
+    let location = geofence::for_employee(&state.db, employee.id).await?;
+
     let now = state.now();
     let mut tx = state.db.begin().await?;
     sqlx::query!(
@@ -191,6 +203,8 @@ pub async fn record_mobile_punch(
     {
         return Err(AppError::rule("Periode bulan ini sudah ditutup."));
     }
+
+    let check = geofence::evaluate(&mut *tx, config, location, &evidence, employee.id, now).await?;
 
     let department_code = employee
         .department_code
@@ -230,6 +244,7 @@ pub async fn record_mobile_punch(
         )
         .fetch_one(&mut *tx)
         .await?;
+        geofence::record(&mut *tx, CheckTarget::Punch(id), &check, created).await?;
         tx.commit().await?;
         Ok::<i64, AppError>(id)
     }
@@ -251,6 +266,7 @@ pub async fn record_mobile_punch(
         source: "mobile".into(),
         status: status.into(),
         has_photo: photo_path.is_some(),
+        flags: check.flags_json(),
     }
     .resource(state))
 }

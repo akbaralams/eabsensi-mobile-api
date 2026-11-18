@@ -60,6 +60,12 @@ pub struct EvidenceForm {
     pub longitude: f64,
     #[serde(default)]
     pub accuracy: i32,
+    #[serde(default)]
+    pub is_mocked: i32,
+    #[serde(default)]
+    pub location_age_seconds: i32,
+    #[serde(default)]
+    pub device_rooted: i32,
 }
 
 /// Body `POST /v2/auth/refresh`.
